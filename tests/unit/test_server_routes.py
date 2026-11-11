@@ -14,6 +14,10 @@ def test_dashboard_and_archetype_routes():
     assert "8Gen Studio" in res.text
     assert "Universal SaaS Design" in res.text
     assert "Studio Workbench" in res.text
+    assert 'id="nav-indicator"' in res.text
+    assert 'data-section="workbench"' in res.text
+    assert 'data-section="assets"' in res.text
+    assert 'data-section="library"' in res.text
     assert 'data-ws-enabled="true"' in res.text
 
     # Health check

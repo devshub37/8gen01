@@ -20,12 +20,13 @@
           <div class="nav-logo-mark">8</div>
           <span>8Gen Studio</span>
         </a>
-        <nav>
-          <ul class="nav-links">
-            <li><a href="/#workbench" class="nav-link active">Studio Workbench</a></li>
-            <li><a href="/#archetypes" class="nav-link">Guaranteed Archetypes</a></li>
-            <li><a href="/#assets" class="nav-link">AI Asset Gen</a></li>
-            <li><a href="/#library" class="nav-link">Local Library</a></li>
+        <nav aria-label="Primary Navigation">
+          <ul class="nav-links" id="nav-links">
+            <li><a href="/#workbench" class="nav-link active" data-section="workbench">Studio Workbench</a></li>
+            <li><a href="/#archetypes" class="nav-link" data-section="archetypes">Guaranteed Archetypes</a></li>
+            <li><a href="/#assets" class="nav-link" data-section="assets">AI Asset Gen</a></li>
+            <li><a href="/#library" class="nav-link" data-section="library">Local Library</a></li>
+            <li class="nav-indicator" id="nav-indicator" aria-hidden="true"></li>
           </ul>
         </nav>
       </div>

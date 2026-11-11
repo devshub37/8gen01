@@ -52,11 +52,149 @@ function getCachedGames() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  setupNavScrollIndicator();
   setupCategoryTabs();
   setupEventListeners();
   setupViewportFocus();
   fetchGames();
 });
+
+function setupNavScrollIndicator() {
+  const navLinksContainer = document.getElementById("nav-links");
+  const indicator = document.getElementById("nav-indicator");
+  if (!navLinksContainer || !indicator) return;
+
+  const navLinks = Array.from(navLinksContainer.querySelectorAll(".nav-link[data-section]"));
+  if (navLinks.length === 0) return;
+
+  const sections = navLinks
+    .map((link) => {
+      const id = link.getAttribute("data-section");
+      const el = id ? document.getElementById(id) : null;
+      return el ? { id, el, link } : null;
+    })
+    .filter(Boolean);
+
+  let activeSectionId = null;
+  let scrollLock = null;
+  let rafScheduled = false;
+
+  function positionIndicator(targetLink, animate) {
+    if (!targetLink) return;
+    if (!animate) {
+      indicator.classList.remove("is-ready");
+    }
+    const containerRect = navLinksContainer.getBoundingClientRect();
+    const linkRect = targetLink.getBoundingClientRect();
+    const left = linkRect.left - containerRect.left;
+    const width = linkRect.width;
+    if (width <= 0) return;
+
+    indicator.style.width = `${width}px`;
+    indicator.style.transform = `translateX(${left}px)`;
+
+    if (!animate) {
+      requestAnimationFrame(() => {
+        indicator.classList.add("is-ready");
+      });
+    } else {
+      indicator.classList.add("is-ready");
+    }
+  }
+
+  function setActiveSection(sectionId, animate = true) {
+    const targetLink =
+      navLinks.find((l) => l.getAttribute("data-section") === sectionId) || navLinks[0];
+    if (!targetLink) return;
+
+    const resolvedId = targetLink.getAttribute("data-section");
+    navLinks.forEach((l) => {
+      l.classList.toggle("active", l === targetLink);
+    });
+    activeSectionId = resolvedId;
+    positionIndicator(targetLink, animate);
+  }
+
+  function detectActiveSection() {
+    if (sections.length === 0) {
+      return activeSectionId || navLinks[0].getAttribute("data-section");
+    }
+
+    if (
+      window.scrollY > 0 &&
+      Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 24
+    ) {
+      return sections[sections.length - 1].id;
+    }
+
+    const triggerY = 64 + Math.min(200, Math.round(window.innerHeight * 0.28));
+    let currentId = sections[0].id;
+    for (const sec of sections) {
+      if (sec.el.getBoundingClientRect().top <= triggerY) {
+        currentId = sec.id;
+      }
+    }
+    return currentId;
+  }
+
+  navLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+      const targetId = link.getAttribute("data-section");
+      if (!targetId) return;
+      const targetEl = document.getElementById(targetId);
+      if (targetEl) {
+        scrollLock = { id: targetId, el: targetEl, until: Date.now() + 700 };
+        setActiveSection(targetId, true);
+      }
+    });
+  });
+
+  function syncOnScroll() {
+    rafScheduled = false;
+    if (scrollLock) {
+      const arrived = Math.abs(scrollLock.el.getBoundingClientRect().top - 80) < 36;
+      if (arrived || Date.now() >= scrollLock.until) {
+        scrollLock = null;
+      } else {
+        return;
+      }
+    }
+    const nextId = detectActiveSection();
+    if (nextId && nextId !== activeSectionId) {
+      setActiveSection(nextId, true);
+    }
+  }
+
+  const hashId = window.location.hash ? window.location.hash.slice(1) : "";
+  const initialId =
+    sections.some((s) => s.id === hashId) ? hashId : detectActiveSection();
+  setActiveSection(initialId, false);
+
+  if (sections.length > 0) {
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!rafScheduled) {
+          rafScheduled = true;
+          requestAnimationFrame(syncOnScroll);
+        }
+      },
+      { passive: true }
+    );
+  }
+
+  window.addEventListener("resize", () => {
+    const activeLink = navLinksContainer.querySelector(".nav-link.active") || navLinks[0];
+    positionIndicator(activeLink, false);
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      const activeLink = navLinksContainer.querySelector(".nav-link.active") || navLinks[0];
+      positionIndicator(activeLink, false);
+    });
+  }
+}
 
 function setupCategoryTabs() {
   const tabs = document.querySelectorAll(".category-tab");
