@@ -101,3 +101,45 @@ def test_vercel_mode_routes_and_paths(monkeypatch, tmp_path):
     assert dl_res.status_code == 200
     assert "<!DOCTYPE html>" in dl_res.text
 
+
+def test_image_generation_svg_fallback_and_listing(monkeypatch, tmp_path):
+    monkeypatch.setenv("EIGHTGEN_OUTPUT_DIR", str(tmp_path / "games"))
+    monkeypatch.setenv("EIGHTGEN_DB_PATH", str(tmp_path / "games" / "8gen.db"))
+    monkeypatch.setenv("GEMINI_API_KEY", "test-fake-key")
+
+    from eightgen.llm.base import LLMResponse
+    from eightgen.llm.gemini import GeminiProvider
+    from eightgen.llm.image_gen import ImageGenerator
+
+    async def fake_native_fail(self, prompt):
+        raise RuntimeError("gemini-2.5-flash-image HTTP 429")
+
+    async def fake_gemini_generate(self, messages, temperature=0.7, **kwargs):
+        return LLMResponse(
+            content='```svg\n<svg viewBox="0 0 512 512"><rect width="512" height="512" fill="#000"/><circle cx="256" cy="256" r="80" fill="#0ff"/></svg>\n```',
+            model="gemini-3-flash-preview",
+        )
+
+    monkeypatch.setattr(ImageGenerator, "_generate_via_google_native_image", fake_native_fail)
+    monkeypatch.setattr(GeminiProvider, "generate", fake_gemini_generate)
+
+    app = create_app()
+    client = TestClient(app)
+
+    img_res = client.post(
+        "/api/images/generate",
+        json={"prompt": "neon laser orb", "style": "pixel-art"},
+    )
+    assert img_res.status_code == 200
+    payload = img_res.json()
+    assert payload["format"] == "svg"
+    assert payload["mime_type"] == "image/svg+xml"
+    assert payload["data_url"].startswith("data:image/svg+xml;base64,")
+    assert payload["filename"].endswith(".svg")
+
+    list_res = client.get("/api/images")
+    assert list_res.status_code == 200
+    items = list_res.json()
+    assert any(item["filename"] == payload["filename"] for item in items)
+
+

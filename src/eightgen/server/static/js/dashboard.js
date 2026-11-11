@@ -373,6 +373,26 @@ function setupEventListeners() {
   setupImageGenerator();
 }
 
+async function rasterizeSvgToPng(svgDataUrl, size = 1024) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/png"));
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = svgDataUrl;
+  });
+}
+
 function setupImageGenerator() {
   const generateImgBtn = document.getElementById("generate-image-btn");
   const imgPromptInput = document.getElementById("image-prompt-input");
@@ -385,41 +405,66 @@ function setupImageGenerator() {
 
   let lastImageDataUrl = "";
 
-  if (generateImgBtn) {
-    generateImgBtn.addEventListener("click", async () => {
-      const prompt = imgPromptInput.value.trim();
-      if (!prompt) return;
+  async function triggerImageGeneration() {
+    const prompt = imgPromptInput ? imgPromptInput.value.trim() : "";
+    if (!prompt) {
+      if (imgPromptInput) imgPromptInput.focus();
+      return;
+    }
 
-      generateImgBtn.disabled = true;
-      generateImgBtn.innerHTML = "<span>🎨 Synthesizing...</span>";
+    generateImgBtn.disabled = true;
+    generateImgBtn.innerHTML = "<span>🎨 Synthesizing...</span>";
 
-      try {
-        const res = await fetch("/api/images/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: prompt,
-            style: imgStyleSelect.value,
-          }),
-        });
+    try {
+      const res = await fetch("/api/images/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt,
+          style: imgStyleSelect ? imgStyleSelect.value : "pixel-art",
+        }),
+      });
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || "Image generation failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Image generation failed");
+      }
+
+      const data = await res.json();
+      let finalDataUrl = data.data_url;
+      let finalFilename = data.filename || "asset.png";
+
+      if (data.mime_type === "image/svg+xml" || (finalDataUrl && finalDataUrl.startsWith("data:image/svg+xml"))) {
+        const pngDataUrl = await rasterizeSvgToPng(finalDataUrl, 1024);
+        if (pngDataUrl) {
+          finalDataUrl = pngDataUrl;
+          finalFilename = finalFilename.replace(/\.svg$/i, ".png");
         }
+      }
 
-        const data = await res.json();
-        lastImageDataUrl = data.data_url;
-        imgResultThumb.src = data.data_url;
-        imgResultDesc.innerText = prompt;
-        downloadAssetLink.href = data.data_url;
-        downloadAssetLink.download = data.filename || "asset.png";
-        imgResultBox.style.display = "flex";
-      } catch (err) {
-        alert(`Image Generation: ${err.message}`);
-      } finally {
-        generateImgBtn.disabled = false;
-        generateImgBtn.innerHTML = "<span>🎨 Synthesize Asset</span>";
+      lastImageDataUrl = finalDataUrl;
+      imgResultThumb.src = finalDataUrl;
+      imgResultDesc.innerText = prompt;
+      downloadAssetLink.href = finalDataUrl;
+      downloadAssetLink.download = finalFilename;
+      imgResultBox.style.display = "flex";
+    } catch (err) {
+      alert(`Image Generation: ${err.message}`);
+    } finally {
+      generateImgBtn.disabled = false;
+      generateImgBtn.innerHTML = "<span>🎨 Synthesize Asset</span>";
+    }
+  }
+
+  if (generateImgBtn) {
+    generateImgBtn.addEventListener("click", triggerImageGeneration);
+  }
+
+  if (imgPromptInput) {
+    imgPromptInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerImageGeneration();
       }
     });
   }

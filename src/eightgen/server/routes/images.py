@@ -39,7 +39,11 @@ def list_assets(gen: ImageGenerator = Depends(get_generator)) -> List[dict]:
     """List all generated image assets."""
     assets = []
     if gen.assets_dir.exists():
-        for p in sorted(gen.assets_dir.glob("*.png"), key=lambda f: f.stat().st_mtime, reverse=True):
+        files = [
+            p for p in gen.assets_dir.iterdir()
+            if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".webp", ".svg")
+        ]
+        for p in sorted(files, key=lambda f: f.stat().st_mtime, reverse=True):
             assets.append({
                 "filename": p.name,
                 "url": f"/static/assets/{p.name}",
