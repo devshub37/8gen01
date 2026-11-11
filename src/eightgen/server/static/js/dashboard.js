@@ -256,15 +256,22 @@ async function handleGenerate() {
   const instant = instantToggle ? instantToggle.checked : false;
 
   generateBtn.disabled = true;
-  generateBtn.innerHTML = `<span>⚡ Synthesizing Game...</span>`;
+  generateBtn.innerHTML = instant
+    ? `<span>⚡ Loading Template...</span>`
+    : `<span>🧠 AI Generating Game (~10-20s)...</span>`;
   streamPanel.style.display = "block";
-  streamPanel.textContent = `Connecting to 8Gen engine (instant=${instant})...\n`;
+  streamPanel.textContent = instant
+    ? `Loading instant template...\n`
+    : `Connecting to 8Gen AI engine (custom synthesis)...\n`;
 
   // WebSocket or fallback to HTTP
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws/generate`;
 
   let ws;
+  let completed = false;
+  let errored = false;
+
   try {
     ws = new WebSocket(wsUrl);
   } catch (e) {
@@ -284,7 +291,9 @@ async function handleGenerate() {
         streamPanel.textContent += data.chunk;
         streamPanel.scrollTop = streamPanel.scrollHeight;
       } else if (data.type === "completed") {
+        completed = true;
         streamPanel.textContent += "\n\n✔ Game successfully synthesized and validated!";
+        streamPanel.scrollTop = streamPanel.scrollHeight;
         generateBtn.disabled = false;
         generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
         if (data.game) {
@@ -292,13 +301,25 @@ async function handleGenerate() {
         }
         fetchGames();
       } else if (data.type === "error") {
-        streamPanel.textContent += `\n\n✖ Notice: ${data.message}\nCompiling guaranteed playable archetype...`;
-        fallbackHttpGenerate(prompt, category, true);
+        errored = true;
+        streamPanel.textContent += `\n\n✖ Notice: ${data.message}\nFalling back to REST generation...`;
+        fallbackHttpGenerate(prompt, category, instant);
       }
     };
 
     ws.onerror = () => {
-      fallbackHttpGenerate(prompt, category, instant);
+      if (!completed && !errored) {
+        errored = true;
+        fallbackHttpGenerate(prompt, category, instant);
+      }
+    };
+
+    ws.onclose = () => {
+      if (!completed && !errored) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+        streamPanel.textContent += "\n\n⚠️ Connection closed unexpectedly. Please try again.";
+      }
     };
   } else {
     fallbackHttpGenerate(prompt, category, instant);
@@ -501,5 +522,10 @@ async function deleteGame(gameId) {
 
 function escapeHtml(str) {
   if (!str) return "";
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

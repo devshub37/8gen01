@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         ),
         description="Google Gemini API Key"
     )
-    gemini_model: str = Field(default="gemini-3.8-flash", description="Gemini model name")
+    gemini_model: str = Field(default="gemini-3-flash-preview", description="Gemini model name")
     gemini_proxy_url: Optional[str] = Field(
         default=None,
         description="Local OpenAI-compatible Gemini proxy URL (e.g. http://localhost:4981/openai/v1 or http://localhost:8081/v1)"

@@ -51,20 +51,36 @@ class GameGenerator:
             await self.plugins.trigger_post_generate(prompt, html)
             return html
 
-        messages = self.prompt_builder.build_generate_messages(prompt, category)
+        base_messages = self.prompt_builder.build_generate_messages(prompt, category)
+        messages = base_messages
         max_attempts = max(1, self.settings.max_retries)
         last_errors = []
         raw_output = ""
         html_code = ""
+        should_fix_previous = False
 
-        try:
-            for attempt in range(1, max_attempts + 1):
-                logger.info(f"Generation attempt {attempt}/{max_attempts}...")
+        async def _notify(text: str) -> None:
+            if not stream_callback:
+                return
+            try:
+                if inspect.iscoroutinefunction(stream_callback):
+                    await stream_callback(text)
+                else:
+                    stream_callback(text)
+            except Exception:
+                pass
 
-                if attempt > 1:
-                    # Self-healing debug attempt
-                    messages = self.prompt_builder.build_fix_messages(raw_output, last_errors)
+        for attempt in range(1, max_attempts + 1):
+            logger.info(f"Generation attempt {attempt}/{max_attempts}...")
 
+            if attempt > 1 and should_fix_previous:
+                # Self-healing debug attempt
+                messages = self.prompt_builder.build_fix_messages(raw_output, last_errors)
+            else:
+                messages = base_messages
+
+            should_fix_previous = False
+            try:
                 raw_chunks = []
                 if stream_callback:
                     async for chunk in self.provider.stream(messages, temperature=self.settings.temperature):
@@ -77,29 +93,39 @@ class GameGenerator:
                 else:
                     response = await self.provider.generate(messages, temperature=self.settings.temperature)
                     raw_output = response.content
+            except ValueError as exc:
+                # Configuration error (e.g., missing API key) - don't retry uselessly
+                logger.warning(f"LLM configuration error: {exc}. Falling back to guaranteed playable engine archetype.")
+                await _notify(f"\n⚠️ AI generation notice: {exc}\n⚡ Loading instant playable archetype...\n")
+                fallback_html = build_smart_archetype(prompt, category or "")
+                await self.plugins.trigger_post_generate(prompt, fallback_html)
+                return fallback_html
+            except Exception as exc:
+                logger.warning(f"LLM attempt {attempt} failed: {exc}")
+                last_errors = [str(exc)]
+                if attempt < max_attempts:
+                    await _notify(f"\n⚠️ Retrying with backup model ({exc})...\n")
+                continue
 
-                # Extract clean HTML
-                html_code = HTMLExtractor.extract(raw_output)
-                if not html_code:
-                    last_errors = ["Failed to extract valid HTML code block from LLM response."]
-                    await self.plugins.trigger_on_validate_error(raw_output, last_errors)
-                    continue
+            # Extract clean HTML
+            html_code = HTMLExtractor.extract(raw_output)
+            if not html_code:
+                last_errors = ["Failed to extract valid HTML code block from LLM response."]
+                await self.plugins.trigger_on_validate_error(raw_output, last_errors)
+                should_fix_previous = True
+                continue
 
-                # Validate HTML structure and requirements
-                val_result: ValidationResult = GameValidator.validate(html_code)
-                if val_result.is_valid:
-                    logger.info("Validation passed successfully!")
-                    await self.plugins.trigger_post_generate(prompt, html_code)
-                    return html_code
+            # Validate HTML structure and requirements
+            val_result: ValidationResult = GameValidator.validate(html_code)
+            if val_result.is_valid:
+                logger.info("Validation passed successfully!")
+                await self.plugins.trigger_post_generate(prompt, html_code)
+                return html_code
 
-                logger.warning(f"Validation failed (attempt {attempt}): {val_result.errors}")
-                last_errors = val_result.errors
-                await self.plugins.trigger_on_validate_error(html_code, last_errors)
-        except Exception as exc:
-            logger.warning(f"LLM generation failed: {exc}. Falling back to guaranteed playable engine archetype.")
-            fallback_html = build_smart_archetype(prompt, category or "")
-            await self.plugins.trigger_post_generate(prompt, fallback_html)
-            return fallback_html
+            logger.warning(f"Validation failed (attempt {attempt}): {val_result.errors}")
+            last_errors = val_result.errors
+            await self.plugins.trigger_on_validate_error(html_code, last_errors)
+            should_fix_previous = True
 
         # If retries exhausted but we have some extracted HTML, log warning and return best effort
         if html_code and "<html" in html_code.lower() and "</script>" in html_code.lower():
@@ -107,5 +133,8 @@ class GameGenerator:
             return html_code
 
         logger.warning(f"Retries exhausted ({last_errors}). Falling back to guaranteed playable engine archetype.")
-        return build_smart_archetype(prompt, category or "")
+        await _notify(f"\n⚠️ Retries exhausted ({'; '.join(last_errors)}). Loading instant playable archetype...\n")
+        fallback_html = build_smart_archetype(prompt, category or "")
+        await self.plugins.trigger_post_generate(prompt, fallback_html)
+        return fallback_html
 

@@ -92,7 +92,10 @@ def create_app() -> FastAPI:
 
     @app.post("/api/settings/key")
     async def save_api_key(payload: KeyUpdateRequest):
-        """Save Gemini API Key to local .env."""
+        """Save Gemini API Key to local .env and runtime environment."""
+        import os
+        from dotenv import load_dotenv
+
         env_file = Path("./.env")
         lines = []
         if env_file.exists():
@@ -117,6 +120,12 @@ def create_app() -> FastAPI:
             new_lines.append(f"EIGHTGEN_PROVIDER={payload.provider.strip()}")
 
         env_file.write_text("\n".join(new_lines) + "\n")
+
+        # Update current process environment immediately
+        os.environ["GEMINI_API_KEY"] = payload.api_key.strip()
+        os.environ["EIGHTGEN_PROVIDER"] = payload.provider.strip()
+        load_dotenv(override=True)
+
         return {"status": "ok", "provider": payload.provider}
 
     return app
