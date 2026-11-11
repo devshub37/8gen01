@@ -1,0 +1,33 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Secrets & local configs
+.env
+.env.*
+8gen.toml
+
+# Local tests & caches
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Local generated runtime artifacts
+games/*.html
+games/8gen.db
+games/assets/
+
+# Git, OS & Vercel
+.git/
+.DS_Store
+.vercel/

@@ -18,6 +18,7 @@ htmlcov/
 
 # Environment Variables & Local configs
 .env
+.env.local
 8gen.toml
 
 # Local Generated Games & DB
@@ -25,5 +26,6 @@ games/*.html
 games/8gen.db
 games/assets/
 
-# macOS
+# macOS & Deployment
 .DS_Store
+.vercel/

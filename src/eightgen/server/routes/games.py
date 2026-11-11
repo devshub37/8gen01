@@ -79,10 +79,16 @@ def download_game(game_id: str, agent: Agent = Depends(get_agent)):
     game = agent.get_game(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    return FileResponse(
-        path=game.file_path,
-        filename=game.file_path.name,
+    if game.file_path.is_file():
+        return FileResponse(
+            path=game.file_path,
+            filename=game.file_path.name,
+            media_type="text/html",
+        )
+    return Response(
+        content=game.latest_html,
         media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="{game.file_path.name}"'},
     )
 
 

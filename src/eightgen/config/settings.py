@@ -11,6 +11,29 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 load_dotenv()
 
 
+def is_vercel() -> bool:
+    """Return True when running inside Vercel's serverless environment."""
+    return bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+
+
+def _default_provider() -> str:
+    return os.getenv("EIGHTGEN_PROVIDER") or os.getenv("PROVIDER") or "gemini"
+
+
+def _default_output_dir() -> Path:
+    env_val = os.getenv("EIGHTGEN_OUTPUT_DIR") or os.getenv("OUTPUT_DIR")
+    if env_val:
+        return Path(env_val)
+    return Path("/tmp/8gen/games") if is_vercel() else Path("./games")
+
+
+def _default_db_path() -> Path:
+    env_val = os.getenv("EIGHTGEN_DB_PATH") or os.getenv("DB_PATH")
+    if env_val:
+        return Path(env_val)
+    return Path("/tmp/8gen/games/8gen.db") if is_vercel() else Path("./games/8gen.db")
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment, config files, or defaults."""
 
@@ -21,7 +44,10 @@ class Settings(BaseSettings):
     )
 
     # LLM Settings
-    provider: str = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
+    provider: str = Field(
+        default_factory=_default_provider,
+        description="LLM provider: 'gemini' or 'ollama'",
+    )
 
     # Gemini Settings (Fast & High Playability)
     gemini_api_key: str = Field(
@@ -51,8 +77,14 @@ class Settings(BaseSettings):
     max_retries: int = Field(default=3, description="Self-healing validation retry limit")
 
     # Storage Settings
-    output_dir: Path = Field(default=Path("./games"), description="Directory to save generated games")
-    db_path: Path = Field(default=Path("./games/8gen.db"), description="Path to SQLite metadata database")
+    output_dir: Path = Field(
+        default_factory=_default_output_dir,
+        description="Directory to save generated games",
+    )
+    db_path: Path = Field(
+        default_factory=_default_db_path,
+        description="Path to SQLite metadata database",
+    )
 
     # Server Settings
     server_host: str = Field(default="127.0.0.1", description="Web dashboard host")

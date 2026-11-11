@@ -1,7 +1,7 @@
 """FastAPI application factory and routes."""
 
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from eightgen.config.loader import get_settings
+from eightgen.config.settings import is_vercel
 from eightgen.core.agent import Agent
 from eightgen.server.routes.games import router as games_router
 from eightgen.server.routes.generate import router as generate_router
@@ -71,8 +72,20 @@ def create_app() -> FastAPI:
                 "model_name": current_settings.active_model_display,
                 "provider": current_settings.provider,
                 "has_key": bool(current_settings.gemini_api_key),
+                "is_vercel": is_vercel(),
             },
         )
+
+    @app.get("/api/health")
+    async def health_check():
+        current_settings = get_settings()
+        return {
+            "status": "ok",
+            "provider": current_settings.provider,
+            "model": current_settings.gemini_model if current_settings.provider == "gemini" else current_settings.model,
+            "has_key": bool(current_settings.gemini_api_key),
+            "vercel": is_vercel(),
+        }
 
     @app.get("/games/{game_id}", response_class=HTMLResponse)
     async def game_view(request: Request, game_id: str):
@@ -93,6 +106,12 @@ def create_app() -> FastAPI:
     @app.post("/api/settings/key")
     async def save_api_key(payload: KeyUpdateRequest):
         """Save Gemini API Key to local .env and runtime environment."""
+        if is_vercel():
+            raise HTTPException(
+                status_code=400,
+                detail="On Vercel deployments, configure GEMINI_API_KEY in Vercel Project Environment Variables.",
+            )
+
         import os
         from dotenv import load_dotenv
 

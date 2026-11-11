@@ -2,6 +2,54 @@
 
 let activeGameId = null;
 let selectedCategory = "arcade";
+const generatedHtmlCache = {};
+const VERCEL_CACHE_KEY = "eightgen_vercel_games_v1";
+
+function isWsEnabled() {
+  const wb = document.getElementById("workbench");
+  return wb ? wb.getAttribute("data-ws-enabled") !== "false" : true;
+}
+
+function getLatestHtmlFromGame(game) {
+  if (!game || !Array.isArray(game.versions) || game.versions.length === 0) {
+    return null;
+  }
+  const latest = game.versions[game.versions.length - 1];
+  return latest && latest.html_content ? latest.html_content : null;
+}
+
+function cacheGameLocally(game) {
+  if (!game || !game.id) return;
+  const html = getLatestHtmlFromGame(game);
+  if (html) {
+    generatedHtmlCache[game.id] = html;
+  }
+  if (isWsEnabled()) return;
+  try {
+    const existing = JSON.parse(localStorage.getItem(VERCEL_CACHE_KEY) || "[]");
+    const filtered = existing.filter((g) => g && g.id !== game.id);
+    filtered.unshift(game);
+    localStorage.setItem(VERCEL_CACHE_KEY, JSON.stringify(filtered.slice(0, 8)));
+  } catch (e) {}
+}
+
+function removeCachedGame(gameId) {
+  delete generatedHtmlCache[gameId];
+  if (isWsEnabled()) return;
+  try {
+    const existing = JSON.parse(localStorage.getItem(VERCEL_CACHE_KEY) || "[]");
+    localStorage.setItem(VERCEL_CACHE_KEY, JSON.stringify(existing.filter((g) => g && g.id !== gameId)));
+  } catch (e) {}
+}
+
+function getCachedGames() {
+  try {
+    const items = JSON.parse(localStorage.getItem(VERCEL_CACHE_KEY) || "[]");
+    return Array.isArray(items) ? items : [];
+  } catch (e) {
+    return [];
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   setupCategoryTabs();
@@ -96,12 +144,21 @@ function setupEventListeners() {
     wbRestartBtn.addEventListener("click", () => {
       const wb = document.getElementById("workbench-frame");
       if (wb) {
-        const src = wb.src;
-        wb.src = "about:blank";
-        setTimeout(() => {
-          wb.src = src;
-          setTimeout(focusWorkbenchFrame, 300);
-        }, 60);
+        if (wb.dataset.useSrcdoc === "1") {
+          const doc = wb.srcdoc;
+          wb.srcdoc = "";
+          setTimeout(() => {
+            wb.srcdoc = doc;
+            setTimeout(focusWorkbenchFrame, 300);
+          }, 60);
+        } else {
+          const src = wb.src;
+          wb.src = "about:blank";
+          setTimeout(() => {
+            wb.src = src;
+            setTimeout(focusWorkbenchFrame, 300);
+          }, 60);
+        }
       }
     });
   }
@@ -264,11 +321,17 @@ async function handleGenerate() {
     ? `Loading instant template...\n`
     : `Connecting to 8Gen AI engine (custom synthesis)...\n`;
 
+  if (!isWsEnabled()) {
+    fallbackHttpGenerate(prompt, category, instant);
+    return;
+  }
+
   // WebSocket or fallback to HTTP
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws/generate`;
 
   let ws;
+  let opened = false;
   let completed = false;
   let errored = false;
 
@@ -280,6 +343,7 @@ async function handleGenerate() {
 
   if (ws) {
     ws.onopen = () => {
+      opened = true;
       ws.send(JSON.stringify({ prompt, category, instant }));
     };
 
@@ -297,6 +361,7 @@ async function handleGenerate() {
         generateBtn.disabled = false;
         generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
         if (data.game) {
+          cacheGameLocally(data.game);
           loadGameIntoWorkbench(data.game.id, data.game.title);
         }
         fetchGames();
@@ -316,9 +381,14 @@ async function handleGenerate() {
 
     ws.onclose = () => {
       if (!completed && !errored) {
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
-        streamPanel.textContent += "\n\n⚠️ Connection closed unexpectedly. Please try again.";
+        if (!opened) {
+          errored = true;
+          fallbackHttpGenerate(prompt, category, instant);
+        } else {
+          generateBtn.disabled = false;
+          generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+          streamPanel.textContent += "\n\n⚠️ Connection closed unexpectedly. Please try again.";
+        }
       }
     };
   } else {
@@ -331,7 +401,7 @@ async function fallbackHttpGenerate(prompt, category, instant) {
   const streamPanel = document.getElementById("stream-panel");
 
   try {
-    streamPanel.textContent += "\nDispatching local REST synthesis request...";
+    streamPanel.textContent += "\nDispatching AI synthesis request...";
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -344,6 +414,7 @@ async function fallbackHttpGenerate(prompt, category, instant) {
     }
 
     const game = await res.json();
+    cacheGameLocally(game);
     streamPanel.textContent += "\n✔ Game created successfully!";
     loadGameIntoWorkbench(game.id, game.title);
     fetchGames();
@@ -362,7 +433,16 @@ function loadGameIntoWorkbench(gameId, title) {
 
   if (wbTitle) wbTitle.innerText = `Live Viewport: ${title}`;
   if (wbFrame) {
-    wbFrame.src = `/api/games/${gameId}/play?t=${Date.now()}`;
+    const cachedHtml = generatedHtmlCache[gameId];
+    if (!isWsEnabled() && cachedHtml) {
+      wbFrame.dataset.useSrcdoc = "1";
+      wbFrame.removeAttribute("src");
+      wbFrame.srcdoc = cachedHtml;
+    } else {
+      wbFrame.dataset.useSrcdoc = "0";
+      wbFrame.removeAttribute("srcdoc");
+      wbFrame.src = `/api/games/${gameId}/play?t=${Date.now()}`;
+    }
     setTimeout(focusWorkbenchFrame, 350);
   }
 
@@ -378,6 +458,8 @@ window.loadArchetypeIntoWorkbench = function(type, title) {
 
   if (wbTitle) wbTitle.innerText = `Live Viewport: ${title}`;
   if (wbFrame) {
+    wbFrame.dataset.useSrcdoc = "0";
+    wbFrame.removeAttribute("srcdoc");
     wbFrame.src = `/api/games/archetype/${type}?t=${Date.now()}`;
     setTimeout(focusWorkbenchFrame, 350);
   }
@@ -394,7 +476,21 @@ async function fetchGames() {
 
   try {
     const res = await fetch("/api/games");
-    const games = await res.json();
+    let games = await res.json();
+    if (!Array.isArray(games)) games = [];
+    games.forEach(cacheGameLocally);
+
+    if (!isWsEnabled()) {
+      const serverIds = new Set(games.map((g) => g.id));
+      for (const localGame of getCachedGames()) {
+        if (localGame && localGame.id && !serverIds.has(localGame.id)) {
+          const html = getLatestHtmlFromGame(localGame);
+          if (html) generatedHtmlCache[localGame.id] = html;
+          games.push(localGame);
+        }
+      }
+    }
+
     if (countEl) countEl.innerText = `${games.length} Games`;
     renderGallery(games);
   } catch (err) {
@@ -441,7 +537,7 @@ function renderGallery(games) {
           <button class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px;" onclick="promptRefine('${g.id}', '${escapeHtml(g.title)}')">
             ⚡ Refine
           </button>
-          <a href="/api/games/${g.id}/download" class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px; display: inline-flex; align-items: center;" title="Export HTML" download>
+          <a href="/api/games/${g.id}/download" class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px; display: inline-flex; align-items: center;" title="Export HTML" download onclick="return handleDownloadGame(event, '${g.id}', '${escapeHtml(g.slug || g.title)}')">
             ⬇
           </a>
           <button class="btn-icon-circular" style="width: 34px; height: 34px; font-size: 12px; flex-shrink: 0;" onclick="deleteGame('${g.id}')" title="Delete">
@@ -501,6 +597,7 @@ function promptRefine(gameId, title) {
       return res.json();
     })
     .then((updated) => {
+      cacheGameLocally(updated);
       if (streamPanel) streamPanel.textContent = `✔ Refinement complete! Game updated to v${updated.current_version}.`;
       loadGameIntoWorkbench(updated.id, updated.title);
       fetchGames();
@@ -510,10 +607,28 @@ function promptRefine(gameId, title) {
     });
 }
 
+function handleDownloadGame(event, gameId, slug) {
+  if (!isWsEnabled() && generatedHtmlCache[gameId]) {
+    event.preventDefault();
+    const blob = new Blob([generatedHtmlCache[gameId]], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(slug || "game").replace(/[^a-z0-9-_]+/gi, "-")}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return false;
+  }
+  return true;
+}
+
 async function deleteGame(gameId) {
   if (!confirm("Are you sure you want to delete this game?")) return;
   try {
     await fetch(`/api/games/${gameId}`, { method: "DELETE" });
+    removeCachedGame(gameId);
     fetchGames();
   } catch (err) {
     alert("Could not delete game.");

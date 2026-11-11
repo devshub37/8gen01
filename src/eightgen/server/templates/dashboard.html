@@ -49,6 +49,15 @@
           </div>
         </div>
 
+        {% if is_vercel %}
+        <div style="display: flex; align-items: center; gap: 10px;">
+          {% if has_key %}
+          <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Gemini API Configured</span>
+          {% else %}
+          <span class="badge-pill" style="color: #b45309; border-color: #fde68a; background-color: #fffbeb;">⚠ Set GEMINI_API_KEY in Vercel Env</span>
+          {% endif %}
+        </div>
+        {% else %}
         <div style="display: flex; gap: 8px; align-items: center; flex: 1; max-width: 440px; min-width: 280px;">
           <input
             type="password"
@@ -62,11 +71,12 @@
             {% if has_key %}Update Key{% else %}Save Key{% endif %}
           </button>
         </div>
+        {% endif %}
       </div>
     </div>
 
     <!-- 2. Hero Product Card: Live Studio Workbench Embedded Directly in Hero -->
-    <div id="workbench" class="hero-product-card">
+    <div id="workbench" class="hero-product-card" data-ws-enabled="{{ 'false' if is_vercel else 'true' }}">
       <div class="studio-workbench">
         <!-- Workbench Left Sidebar: The Control Console -->
         <div class="studio-sidebar">

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 import httpx
 
-from eightgen.config.settings import Settings
+from eightgen.config.settings import Settings, is_vercel
 from eightgen.utils.logger import get_logger
 
 logger = get_logger("eightgen.image_gen")
@@ -44,12 +44,13 @@ class ImageGenerator:
         proxy_endpoints = []
         if self.settings.gemini_proxy_url:
             proxy_endpoints.append(self.settings.gemini_proxy_url)
-        proxy_endpoints.extend([
-            "http://127.0.0.1:4981/openai/v1",
-            "http://localhost:4981/openai/v1",
-            "http://127.0.0.1:8081/v1",
-            "http://localhost:8081/v1",
-        ])
+        if not is_vercel():
+            proxy_endpoints.extend([
+                "http://127.0.0.1:4981/openai/v1",
+                "http://localhost:4981/openai/v1",
+                "http://127.0.0.1:8081/v1",
+                "http://localhost:8081/v1",
+            ])
 
         for base_proxy in proxy_endpoints:
             try:
