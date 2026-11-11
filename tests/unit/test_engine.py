@@ -7,6 +7,11 @@ from eightgen.core.engine.archetypes import (
     build_flappy_drone_game,
     build_smart_archetype,
 )
+from eightgen.core.engine.references import (
+    REFERENCE_GAMES,
+    get_reference_spec,
+    build_simple_reference_game,
+)
 from eightgen.core.validator import GameValidator
 
 
@@ -62,3 +67,17 @@ def test_smart_archetype_dispatcher():
     shooter_html = build_smart_archetype("Alien galaxy invader defense")
     assert "Defender" in shooter_html or "Space" in shooter_html
     assert GameValidator.validate(shooter_html).is_valid
+
+
+def test_simple_reference_games_all_build_and_validate():
+    assert len(REFERENCE_GAMES) >= 8
+    for spec in REFERENCE_GAMES:
+        assert get_reference_spec(spec.id) == spec
+        html = build_simple_reference_game(spec.id)
+        assert html is not None
+        assert "<!DOCTYPE html>" in html
+        val = GameValidator.validate(html)
+        assert val.is_valid, f"Reference game '{spec.id}' failed validation: {val.errors}"
+
+    assert get_reference_spec("unknown-ref") is None
+    assert build_simple_reference_game("unknown-ref") is None

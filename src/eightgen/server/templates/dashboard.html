@@ -1,120 +1,119 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- 1. Hero Band (White Canvas #ffffff, Display-XL, Inter, 96px whitespace rhythm) -->
-<section class="section hero-band" style="padding-top: 72px; padding-bottom: 48px;">
+<!-- 1. Page 1: Studio Workbench (Hero + Control Console + Live Viewport in One Screen) -->
+<section id="workbench" class="page-section hero-band" data-ws-enabled="{{ 'false' if is_vercel else 'true' }}">
   <div class="container">
-    <div style="max-width: 860px; margin-bottom: 32px;">
-      <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
-        <span class="badge-pill">v0.1.0 Alpha</span>
-        <span class="badge-pill">Universal SaaS Design</span>
-        <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Zero Cloud Lock-In</span>
+    <div class="hero-compact-header">
+      <div class="hero-compact-copy">
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;">
+          <span class="badge-pill">v0.1.0 Alpha</span>
+          <span class="badge-pill">Universal SaaS Design</span>
+          <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Zero Cloud Lock-In</span>
+        </div>
+
+        <h1 class="display-xl hero-title-compact">
+          Generate instant playable games locally with AI.
+        </h1>
+
+        <p class="body-md hero-subtitle-compact">
+          8Gen synthesizes complete single-file HTML5 games with simple controls, Web Audio synthesis, and zero external dependencies.
+        </p>
       </div>
 
-      <h1 class="display-xl" style="margin-bottom: 20px;">
-        Generate instant playable games locally with AI.
-      </h1>
-
-      <p class="body-md" style="font-size: 18px; color: var(--color-muted); line-height: 1.6; max-width: 720px; margin-bottom: 28px;">
-        8Gen synthesizes complete single-file HTML5 arcade games with zero-dependency physics, Web Audio procedural sound synthesis, and particle effects in seconds. Built for local developers and creators.
-      </p>
-
-      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <a href="#workbench" class="btn-primary">
-          Launch Studio Workbench
-        </a>
-        <a href="#archetypes" class="btn-secondary">
-          Explore Guaranteed Archetypes
-        </a>
-        <a href="#library" class="btn-text-link" style="margin-left: 8px;">
-          View Local Library →
-        </a>
-      </div>
-    </div>
-
-    <!-- Gemini AI Fast-Mode Setup Card (Clean Minimalist SaaS Bar) -->
-    <div class="product-mockup-card" style="padding: 16px 20px; margin-bottom: 48px; background-color: var(--color-surface-soft);">
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 32px; height: 32px; border-radius: 8px; background-color: var(--color-ink); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 15px;">
+      <!-- Compact Gemini Status / Key Setup Card -->
+      <div class="product-mockup-card hero-gemini-card">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="width: 28px; height: 28px; border-radius: 7px; background-color: var(--color-ink); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">
             ⚡
           </div>
           <div>
-            <div class="title-sm" style="font-size: 14px; margin-bottom: 2px;">
-              Ultra-Fast Mode: Google Gemini Flash API
+            <div class="title-sm" style="font-size: 13px; line-height: 1.2;">
+              Google Gemini Flash API
             </div>
-            <div class="body-sm" style="font-size: 13px;">
-              Generates high-tactile arcade games in ~1.8 seconds. Free key available at <a href="https://aistudio.google.com/" target="_blank" style="color: var(--color-ink); text-decoration: underline;">aistudio.google.com</a>.
+            <div class="body-sm" style="font-size: 12px;">
+              Free key at <a href="https://aistudio.google.com/" target="_blank" style="color: var(--color-ink); text-decoration: underline;">aistudio.google.com</a>
             </div>
           </div>
         </div>
 
         {% if is_vercel %}
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
           {% if has_key %}
           <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Gemini API Configured</span>
           {% else %}
           <span class="badge-pill" style="color: #b45309; border-color: #fde68a; background-color: #fffbeb;">⚠ Set GEMINI_API_KEY in Vercel Env</span>
           {% endif %}
+          <div style="display: flex; gap: 8px;">
+            <a href="#archetypes" class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 12px;">Archetypes</a>
+            <a href="#library" class="btn-text-link" style="font-size: 12px;">Library →</a>
+          </div>
         </div>
         {% else %}
-        <div style="display: flex; gap: 8px; align-items: center; flex: 1; max-width: 440px; min-width: 280px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
           <input
             type="password"
             id="gemini-key-input"
             class="text-input"
-            style="height: 36px; font-size: 13px;"
+            style="height: 34px; font-size: 12px;"
             placeholder="Paste Gemini API Key (AIzaSy...)"
             value="{% if has_key %}••••••••••••••••{% endif %}"
           />
-          <button id="save-key-btn" class="btn-primary" style="height: 36px; padding: 0 16px; font-size: 13px; flex-shrink: 0;">
-            {% if has_key %}Update Key{% else %}Save Key{% endif %}
+          <button id="save-key-btn" class="btn-primary" style="height: 34px; padding: 0 12px; font-size: 12px; flex-shrink: 0;">
+            {% if has_key %}Update{% else %}Save Key{% endif %}
           </button>
         </div>
         {% endif %}
       </div>
     </div>
 
-    <!-- 2. Hero Product Card: Live Studio Workbench Embedded Directly in Hero -->
-    <div id="workbench" class="hero-product-card" data-ws-enabled="{{ 'false' if is_vercel else 'true' }}">
+    <!-- Live Studio Workbench -->
+    <div id="workbench-card" class="hero-product-card">
       <div class="studio-workbench">
         <!-- Workbench Left Sidebar: The Control Console -->
         <div class="studio-sidebar">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span class="title-sm" style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-ink);">
               Studio Console
             </span>
             <span class="badge-pill status-live">Ready</span>
           </div>
 
-          <!-- Category Pill Tabs -->
-          <div style="margin-bottom: 16px;">
-            <label class="caption" style="display: block; margin-bottom: 6px; font-weight: 600;">Category</label>
-            <div class="nav-pill-group" style="width: 100%; display: flex; justify-content: space-between;">
-              <button class="category-tab active" data-cat="arcade" style="flex: 1; text-align: center;">Arcade</button>
-              <button class="category-tab" data-cat="shooter" style="flex: 1; text-align: center;">Shooter</button>
-              <button class="category-tab" data-cat="platformer" style="flex: 1; text-align: center;">Platformer</button>
-              <button class="category-tab" data-cat="puzzle" style="flex: 1; text-align: center;">Puzzle</button>
+          <!-- Game Reference Selector -->
+          <div style="margin-bottom: 10px;">
+            <label for="game-reference-select" class="caption" style="display: block; margin-bottom: 4px; font-weight: 600;">Game Reference</label>
+            <select id="game-reference-select" class="select-input" style="width: 100%; height: 36px; font-size: 13px;">
+              <option value="">Choose a simple popular game...</option>
+              {% for ref in references %}
+              <option
+                value="{{ ref.id }}"
+                data-prompt="{{ ref.prompt }}"
+                data-controls="{{ ref.controls }}"
+              >{{ ref.label }}</option>
+              {% endfor %}
+            </select>
+            <div id="reference-controls-hint" class="caption" style="margin-top: 4px; font-size: 11px; color: var(--color-muted); line-height: 1.3;">
+              Selecting a game generates a simpler runnable version with basic controls &amp; logic.
             </div>
           </div>
 
           <!-- Prompt Input -->
-          <div style="margin-bottom: 14px;">
-            <label class="caption" style="display: block; margin-bottom: 6px; font-weight: 600;">Game Prompt & Mechanics</label>
+          <div style="margin-bottom: 10px;">
+            <label for="prompt-input" class="caption" style="display: block; margin-bottom: 4px; font-weight: 600;">Game Prompt & Mechanics</label>
             <textarea
               id="prompt-input"
               class="text-input"
-              rows="3"
-              style="height: 80px; resize: none; font-size: 13px; line-height: 1.4;"
-              placeholder="e.g. Neon space shooter with laser cannons, aliens, and sound effects..."
+              rows="2"
+              style="height: 54px; resize: none; font-size: 13px; line-height: 1.35;"
+              placeholder="Pick a Game Reference above or describe a simple custom game..."
             ></textarea>
           </div>
 
           <!-- Speed Mode & Options -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 8px 12px; background: var(--color-canvas); border-radius: var(--radius-md); border: 1px solid var(--color-hairline);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 10px; background: var(--color-canvas); border-radius: var(--radius-md); border: 1px solid var(--color-hairline);">
             <div style="display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="instant-mode-toggle" style="cursor: pointer; accent-color: var(--color-primary);" />
-              <label for="instant-mode-toggle" class="body-sm" style="font-size: 13px; color: var(--color-ink); cursor: pointer; user-select: none;">
+              <label for="instant-mode-toggle" class="body-sm" style="font-size: 12px; color: var(--color-ink); cursor: pointer; user-select: none;">
                 <strong>⚡ Template Mode</strong> (Skip AI, 0.05s preset)
               </label>
             </div>
@@ -122,31 +121,31 @@
           </div>
 
           <!-- Primary Generate Action -->
-          <button id="generate-btn" class="btn-primary" style="width: 100%; margin-bottom: 16px; height: 42px;">
+          <button id="generate-btn" class="btn-primary" style="width: 100%; margin-bottom: 10px; height: 38px;">
             <span>⚡ Generate & Launch Game</span>
           </button>
 
           <!-- Starter Preset Chips -->
-          <div style="margin-bottom: 16px;">
-            <div class="caption" style="margin-bottom: 8px; font-weight: 600;">Starter Presets (Click to autofill):</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <button class="chip btn-secondary" style="height: auto; padding: 8px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-prompt="Retro Space Invaders with laser cannons, enemy formations, sound effects, and high score" data-category="shooter">
+          <div style="margin-bottom: 8px;">
+            <div class="caption" style="margin-bottom: 6px; font-weight: 600;">Starter Presets (Instant play):</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button class="chip btn-secondary" style="height: auto; padding: 7px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-archetype="shooter" data-title="Neon Space Defender" data-prompt="Retro Space Invaders with laser cannons, enemy formations, sound effects, and high score">
                 🚀 Space Invaders
               </button>
-              <button class="chip btn-secondary" style="height: auto; padding: 8px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-prompt="Retro neon Snake game with collectible fruit, speed boosts, glowing trail, and score" data-category="arcade">
+              <button class="chip btn-secondary" style="height: auto; padding: 7px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-archetype="snake" data-title="Cyber Snake 2099" data-prompt="Retro neon Snake game with collectible fruit, speed boosts, glowing trail, and score">
                 🐍 Cyber Snake
               </button>
-              <button class="chip btn-secondary" style="height: auto; padding: 8px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-prompt="Brick breaker breakout game with bouncing ball, colorful destructible blocks, and multiball" data-category="arcade">
+              <button class="chip btn-secondary" style="height: auto; padding: 7px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-archetype="brick" data-title="Quantum Breakout" data-prompt="Brick breaker breakout game with bouncing ball, colorful destructible blocks, and multiball">
                 🧱 Brick Breaker
               </button>
-              <button class="chip btn-secondary" style="height: auto; padding: 8px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-prompt="Flappy neon drone flying through electric obstacles with space/click controls and score" data-category="platformer">
+              <button class="chip btn-secondary" style="height: auto; padding: 7px 10px; justify-content: flex-start; text-align: left; font-size: 12px;" data-archetype="drone" data-title="Aero Drone Odyssey" data-prompt="Flappy neon drone flying through electric obstacles with space/click controls and score">
                 ⚡ Aero Drone
               </button>
             </div>
           </div>
 
           <!-- Streaming Telemetry Console -->
-          <pre id="stream-panel" class="code-text" style="display: none; height: 110px; overflow-y: auto; background-color: var(--color-canvas); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: 8px; font-size: 11px; color: var(--color-body); margin-top: auto;"></pre>
+          <pre id="stream-panel" class="code-text" style="display: none; min-height: 76px; max-height: 96px; overflow-y: auto; background-color: var(--color-canvas); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: 8px; font-size: 11px; color: var(--color-body); margin-top: auto;"></pre>
         </div>
 
         <!-- Workbench Right Pane: Live Viewport -->
@@ -177,76 +176,26 @@
   </div>
 </section>
 
-<!-- 3. Alternating Section: Surface Soft (#f8f9fa) - Engine Architecture & Tactile Features -->
-<section class="section surface-soft">
+<!-- 2. Page 2: Guaranteed Playable Archetypes + Built-in Engine Architecture -->
+<section id="archetypes" class="page-section surface-soft">
   <div class="container">
-    <div style="margin-bottom: 48px; max-width: 640px;">
-      <div class="badge-pill" style="margin-bottom: 12px;">Architecture</div>
-      <h2 class="display-sm" style="margin-bottom: 12px;">
-        Engineered for instant response and tactile polish.
-      </h2>
-      <p class="body-md" style="color: var(--color-muted);">
-        Every game synthesized by 8Gen includes three foundational, zero-dependency modules built directly into the single-file canvas payload.
-      </p>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
-      <!-- Feature Card 1 -->
-      <div class="feature-card">
-        <div style="width: 40px; height: 40px; border-radius: 8px; background-color: var(--color-canvas); border: 1px solid var(--color-hairline); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px;">
-          🎮
-        </div>
-        <h3 class="title-md" style="margin-bottom: 10px;">Zero-Dependency Canvas Core</h3>
-        <p class="body-sm" style="line-height: 1.6;">
-          Pure 60fps HTML5 Canvas 2D rendering loop. Features delta-time step calculations, cross-platform input management (Arrow keys, WASD, Mouse, and Mobile Touch), and default scroll interception.
-        </p>
-      </div>
-
-      <!-- Feature Card 2 -->
-      <div class="feature-card">
-        <div style="width: 40px; height: 40px; border-radius: 8px; background-color: var(--color-canvas); border: 1px solid var(--color-hairline); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px;">
-          🔊
-        </div>
-        <h3 class="title-md" style="margin-bottom: 10px;">Procedural Web Audio API</h3>
-        <p class="body-sm" style="line-height: 1.6;">
-          Zero external audio files required. Real-time mathematical synthesis creates downward laser sweeps, white-noise explosion bursts, punchy thud impacts, and ascending arpeggios on demand.
-        </p>
-      </div>
-
-      <!-- Feature Card 3 -->
-      <div class="feature-card">
-        <div style="width: 40px; height: 40px; border-radius: 8px; background-color: var(--color-canvas); border: 1px solid var(--color-hairline); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px;">
-          ✨
-        </div>
-        <h3 class="title-md" style="margin-bottom: 10px;">Particle Engine & Self-Healing</h3>
-        <p class="body-sm" style="line-height: 1.6;">
-          Every impact triggers colorful fading particle bursts, floating score text, and authentic camera shake. An AST validation engine repairs broken loops and guarantees 100% playable output.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 4. Section: White Canvas (#ffffff) - Guaranteed Playable Archetypes -->
-<section id="archetypes" class="section">
-  <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; flex-wrap: wrap; gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
       <div>
-        <div class="badge-pill" style="margin-bottom: 12px;">Zero Latency</div>
-        <h2 class="display-sm" style="margin-bottom: 10px;">Guaranteed Playable Archetypes</h2>
+        <div class="badge-pill" style="margin-bottom: 8px;">Zero Latency</div>
+        <h2 class="display-sm" style="margin-bottom: 6px;">Guaranteed Playable Archetypes</h2>
         <p class="body-sm" style="max-width: 600px;">
-          Ready-to-run arcade archetypes engineered with full mechanics, particle systems, procedural audio, and high score tracking.
+          Ready-to-run arcade archetypes engineered with zero-dependency canvas physics, procedural Web Audio synthesis, and particle effects.
         </p>
       </div>
-      <a href="#workbench" class="btn-secondary">Load Into Studio Workbench</a>
+      <a href="#workbench" class="btn-secondary">Back to Studio Workbench</a>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
       <!-- Archetype 1: Space Shooter -->
-      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;">
-        <div style="font-size: 32px; margin-bottom: 12px;">🚀</div>
-        <h3 class="title-md" style="margin-bottom: 8px;">Space Defender</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 20px;">
+      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
+        <div style="font-size: 28px; margin-bottom: 10px;">🚀</div>
+        <h3 class="title-md" style="margin-bottom: 6px;">Space Defender</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
           Dual laser cannons, alien attack waves, powerup drops (weapon boost & shield), particle thrusters, and boss encounters.
         </p>
         <div style="display: flex; gap: 8px;">
@@ -260,10 +209,10 @@
       </div>
 
       <!-- Archetype 2: Cyber Snake -->
-      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;">
-        <div style="font-size: 32px; margin-bottom: 12px;">🐍</div>
-        <h3 class="title-md" style="margin-bottom: 8px;">Cyber Snake 2099</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 20px;">
+      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
+        <div style="font-size: 28px; margin-bottom: 10px;">🐍</div>
+        <h3 class="title-md" style="margin-bottom: 6px;">Cyber Snake 2099</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
           Grid-aligned snake movement with speed interpolation, golden fruit bonuses, glowing trail particles, and high score records.
         </p>
         <div style="display: flex; gap: 8px;">
@@ -277,10 +226,10 @@
       </div>
 
       <!-- Archetype 3: Brick Breaker -->
-      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;">
-        <div style="font-size: 32px; margin-bottom: 12px;">🧱</div>
-        <h3 class="title-md" style="margin-bottom: 8px;">Quantum Breakout</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 20px;">
+      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
+        <div style="font-size: 28px; margin-bottom: 10px;">🧱</div>
+        <h3 class="title-md" style="margin-bottom: 6px;">Quantum Breakout</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
           Angular paddle deflection, multi-hit destructible bricks, ball particle trails, and lives counter with sound synthesis.
         </p>
         <div style="display: flex; gap: 8px;">
@@ -294,10 +243,10 @@
       </div>
 
       <!-- Archetype 4: Aero Drone -->
-      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;">
-        <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
-        <h3 class="title-md" style="margin-bottom: 8px;">Aero Drone Odyssey</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 20px;">
+      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
+        <div style="font-size: 28px; margin-bottom: 10px;">⚡</div>
+        <h3 class="title-md" style="margin-bottom: 6px;">Aero Drone Odyssey</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
           One-button tap/space gravity flight mechanics, moving neon obstacle pillars, bonus energy orbs, and screen shake on crash.
         </p>
         <div style="display: flex; gap: 8px;">
@@ -310,11 +259,44 @@
         </div>
       </div>
     </div>
+
+    <!-- Compact Engine Architecture Pillars -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px;">
+      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 18px;">🎮</span>
+          <h3 class="title-sm" style="font-size: 14px;">Zero-Dependency Canvas Core</h3>
+        </div>
+        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+          Single-file 60fps HTML5 rendering with keyboard/mouse inputs and scroll interception built in.
+        </p>
+      </div>
+
+      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 18px;">🔊</span>
+          <h3 class="title-sm" style="font-size: 14px;">Procedural Web Audio API</h3>
+        </div>
+        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+          Real-time Web Audio tones for hits, jumps, and score chimes without external sound files.
+        </p>
+      </div>
+
+      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 18px;">✨</span>
+          <h3 class="title-sm" style="font-size: 14px;">AST Self-Healing Engine</h3>
+        </div>
+        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+          Automatic HTML validation and runnable reference fallbacks guarantee working games every time.
+        </p>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- 5. Alternating Section: Surface Soft (#f8f9fa) - AI Asset & Sprite Generator -->
-<section id="assets" class="section surface-soft">
+<!-- 3. Page 3: AI Asset & Sprite Generator -->
+<section id="assets" class="page-section page-section-centered">
   <div class="container">
     <div style="margin-bottom: 32px; max-width: 640px;">
       <div class="badge-pill" style="margin-bottom: 12px;">Image Generation</div>
@@ -363,8 +345,8 @@
   </div>
 </section>
 
-<!-- 6. Section: White Canvas (#ffffff) - Local Game Library & Storage -->
-<section id="library" class="section">
+<!-- 4. Page 4: Local Game Library & Storage -->
+<section id="library" class="page-section surface-soft">
   <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; flex-wrap: wrap; gap: 16px;">
       <div>

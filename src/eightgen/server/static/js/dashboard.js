@@ -1,9 +1,15 @@
 // 8Gen Autonomous Game Studio - Universal SaaS Dashboard Logic
 
 let activeGameId = null;
-let selectedCategory = "arcade";
+let selectedGameReference = null;
+let lastReferencePrompt = "";
+let snapCooldownUntil = 0;
 const generatedHtmlCache = {};
 const VERCEL_CACHE_KEY = "eightgen_vercel_games_v1";
+
+function setSnapCooldown(ms = 750) {
+  snapCooldownUntil = Math.max(snapCooldownUntil, Date.now() + ms);
+}
 
 function isWsEnabled() {
   const wb = document.getElementById("workbench");
@@ -53,7 +59,7 @@ function getCachedGames() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupNavScrollIndicator();
-  setupCategoryTabs();
+  setupGameReferenceSelector();
   setupEventListeners();
   setupViewportFocus();
   fetchGames();
@@ -67,6 +73,8 @@ function setupNavScrollIndicator() {
   const navLinks = Array.from(navLinksContainer.querySelectorAll(".nav-link[data-section]"));
   if (navLinks.length === 0) return;
 
+  document.documentElement.classList.add("page-snap-root");
+
   const sections = navLinks
     .map((link) => {
       const id = link.getAttribute("data-section");
@@ -78,6 +86,12 @@ function setupNavScrollIndicator() {
   let activeSectionId = null;
   let scrollLock = null;
   let rafScheduled = false;
+  let snapSettleTimer = null;
+
+  function getSnapTop(el) {
+    if (!el) return 0;
+    return Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - 64));
+  }
 
   function positionIndicator(targetLink, animate) {
     if (!targetLink) return;
@@ -127,32 +141,84 @@ function setupNavScrollIndicator() {
       return sections[sections.length - 1].id;
     }
 
-    const triggerY = 64 + Math.min(200, Math.round(window.innerHeight * 0.28));
-    let currentId = sections[0].id;
+    const currentY = window.scrollY;
+    let closest = sections[0];
+    let minDistance = Infinity;
     for (const sec of sections) {
-      if (sec.el.getBoundingClientRect().top <= triggerY) {
-        currentId = sec.id;
+      const dist = Math.abs(getSnapTop(sec.el) - currentY);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = sec;
       }
     }
-    return currentId;
+    return closest.id;
   }
 
-  navLinks.forEach((link) => {
-    link.addEventListener("click", () => {
-      const targetId = link.getAttribute("data-section");
+  function snapToNearestPage() {
+    if (snapSettleTimer) {
+      clearTimeout(snapSettleTimer);
+      snapSettleTimer = null;
+    }
+    if (window.innerWidth <= 900 || sections.length === 0) return;
+    if (Date.now() < snapCooldownUntil) return;
+
+    const modal = document.getElementById("game-modal");
+    if (modal && modal.style.display && modal.style.display !== "none") return;
+
+    const currentY = window.scrollY;
+    const libraryTop = getSnapTop(sections[sections.length - 1].el);
+    // Allow browsing long local game libraries & footer cleanly past Page 4 start
+    if (currentY > libraryTop + 80) return;
+
+    let nearest = sections[0];
+    let nearestTop = getSnapTop(nearest.el);
+    let minDiff = Math.abs(nearestTop - currentY);
+
+    for (let i = 1; i < sections.length; i++) {
+      const top = getSnapTop(sections[i].el);
+      const diff = Math.abs(top - currentY);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearest = sections[i];
+        nearestTop = top;
+      }
+    }
+
+    if (minDiff > 4) {
+      setActiveSection(nearest.id, true);
+      setSnapCooldown(650);
+      window.scrollTo({ top: nearestTop, behavior: "smooth" });
+    }
+  }
+
+  function scheduleSnap() {
+    if (snapSettleTimer) clearTimeout(snapSettleTimer);
+    snapSettleTimer = setTimeout(snapToNearestPage, 150);
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", (e) => {
+      const href = anchor.getAttribute("href");
+      const targetId = href ? href.slice(1) : "";
       if (!targetId) return;
       const targetEl = document.getElementById(targetId);
-      if (targetEl) {
-        scrollLock = { id: targetId, el: targetEl, until: Date.now() + 700 };
+      if (!targetEl) return;
+
+      e.preventDefault();
+      const targetTop = getSnapTop(targetEl);
+      if (sections.some((s) => s.id === targetId)) {
+        scrollLock = { id: targetId, el: targetEl, targetTop, until: Date.now() + 750 };
         setActiveSection(targetId, true);
       }
+      setSnapCooldown(750);
+      window.scrollTo({ top: targetTop, behavior: "smooth" });
     });
   });
 
   function syncOnScroll() {
     rafScheduled = false;
     if (scrollLock) {
-      const arrived = Math.abs(scrollLock.el.getBoundingClientRect().top - 80) < 36;
+      const arrived = Math.abs(window.scrollY - scrollLock.targetTop) < 12;
       if (arrived || Date.now() >= scrollLock.until) {
         scrollLock = null;
       } else {
@@ -178,9 +244,33 @@ function setupNavScrollIndicator() {
           rafScheduled = true;
           requestAnimationFrame(syncOnScroll);
         }
+        if (Date.now() >= snapCooldownUntil) {
+          scheduleSnap();
+        }
       },
       { passive: true }
     );
+
+    if ("onscrollend" in window) {
+      window.addEventListener("scrollend", () => {
+        if (Date.now() >= snapCooldownUntil) {
+          snapToNearestPage();
+        }
+      });
+    }
+
+    ["wheel", "touchstart"].forEach((evt) => {
+      window.addEventListener(
+        evt,
+        () => {
+          if (snapSettleTimer) {
+            clearTimeout(snapSettleTimer);
+            snapSettleTimer = null;
+          }
+        },
+        { passive: true }
+      );
+    });
   }
 
   window.addEventListener("resize", () => {
@@ -196,15 +286,50 @@ function setupNavScrollIndicator() {
   }
 }
 
-function setupCategoryTabs() {
-  const tabs = document.querySelectorAll(".category-tab");
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      selectedCategory = tab.getAttribute("data-cat") || "arcade";
-    });
+function setupGameReferenceSelector() {
+  const refSelect = document.getElementById("game-reference-select");
+  const promptInput = document.getElementById("prompt-input");
+  const hintEl = document.getElementById("reference-controls-hint");
+  if (!refSelect) return;
+
+  const defaultHint =
+    "Selecting a game generates a simpler runnable version with basic controls & logic.";
+
+  refSelect.addEventListener("change", () => {
+    const refId = refSelect.value;
+    if (!refId) {
+      selectedGameReference = null;
+      lastReferencePrompt = "";
+      if (hintEl) hintEl.textContent = defaultHint;
+      return;
+    }
+
+    const opt = refSelect.options[refSelect.selectedIndex];
+    const refPrompt = opt ? opt.getAttribute("data-prompt") || "" : "";
+    const refControls = opt ? opt.getAttribute("data-controls") || "" : "";
+
+    selectedGameReference = refId;
+    lastReferencePrompt = refPrompt;
+    if (promptInput && refPrompt) {
+      promptInput.value = refPrompt;
+    }
+    if (hintEl) {
+      hintEl.textContent = refControls ? `Controls: ${refControls}` : defaultHint;
+    }
+
+    handleGenerate(refId);
   });
+
+  if (promptInput) {
+    promptInput.addEventListener("input", () => {
+      if (selectedGameReference && promptInput.value !== lastReferencePrompt) {
+        selectedGameReference = null;
+        lastReferencePrompt = "";
+        refSelect.value = "";
+        if (hintEl) hintEl.textContent = defaultHint;
+      }
+    });
+  }
 }
 
 function setupViewportFocus() {
@@ -346,25 +471,16 @@ function setupEventListeners() {
     chip.addEventListener("click", (e) => {
       e.preventDefault();
       const prompt = chip.getAttribute("data-prompt");
-      const cat = chip.getAttribute("data-category");
+      const archetype = chip.getAttribute("data-archetype");
+      const title = chip.getAttribute("data-title");
+      const refSelect = document.getElementById("game-reference-select");
       if (prompt && promptInput) promptInput.value = prompt;
-      if (cat) {
-        selectedCategory = cat;
-        document.querySelectorAll(".category-tab").forEach((t) => {
-          if (t.getAttribute("data-cat") === cat) t.classList.add("active");
-          else t.classList.remove("active");
-        });
-      }
+      selectedGameReference = null;
+      lastReferencePrompt = "";
+      if (refSelect) refSelect.value = "";
 
-      // Immediately launch the matching playable archetype into the workbench!
-      if (cat === "shooter" || (prompt && prompt.includes("Space"))) {
-        loadArchetypeIntoWorkbench("shooter", "Neon Space Defender");
-      } else if (prompt && prompt.includes("Snake")) {
-        loadArchetypeIntoWorkbench("snake", "Cyber Snake 2099");
-      } else if (prompt && prompt.includes("Brick")) {
-        loadArchetypeIntoWorkbench("brick", "Quantum Breakout");
-      } else if (prompt && (prompt.includes("Drone") || prompt.includes("Flappy"))) {
-        loadArchetypeIntoWorkbench("drone", "Aero Drone Odyssey");
+      if (archetype) {
+        loadArchetypeIntoWorkbench(archetype, title || "Live Archetype");
       }
     });
   });
@@ -480,32 +596,54 @@ function setupImageGenerator() {
   }
 }
 
-async function handleGenerate() {
+function setGenerationBusy(isBusy) {
+  const generateBtn = document.getElementById("generate-btn");
+  const refSelect = document.getElementById("game-reference-select");
+  if (generateBtn) {
+    generateBtn.disabled = isBusy;
+    if (!isBusy) {
+      generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+    }
+  }
+  if (refSelect) {
+    refSelect.disabled = isBusy;
+  }
+}
+
+async function handleGenerate(overrideRefId = null) {
   const promptInput = document.getElementById("prompt-input");
   const generateBtn = document.getElementById("generate-btn");
   const streamPanel = document.getElementById("stream-panel");
   const instantToggle = document.getElementById("instant-mode-toggle");
 
+  const gameReference =
+    typeof overrideRefId === "string" && overrideRefId
+      ? overrideRefId
+      : selectedGameReference || null;
+
   let prompt = promptInput ? promptInput.value.trim() : "";
-  if (!prompt) {
-    prompt = "Retro Space Invaders with laser cannons and alien boss waves";
+  if (!prompt && !gameReference) {
+    prompt = "Retro Space Invaders with laser cannons and simple keyboard controls";
     if (promptInput) promptInput.value = prompt;
   }
 
-  const category = selectedCategory || "arcade";
   const instant = instantToggle ? instantToggle.checked : false;
 
-  generateBtn.disabled = true;
-  generateBtn.innerHTML = instant
-    ? `<span>⚡ Loading Template...</span>`
-    : `<span>🧠 AI Generating Game (~10-20s)...</span>`;
+  setGenerationBusy(true);
+  if (generateBtn) {
+    generateBtn.innerHTML = instant
+      ? `<span>⚡ Loading Template...</span>`
+      : `<span>🧠 AI Generating Game (~10-20s)...</span>`;
+  }
   streamPanel.style.display = "block";
-  streamPanel.textContent = instant
-    ? `Loading instant template...\n`
-    : `Connecting to 8Gen AI engine (custom synthesis)...\n`;
+  streamPanel.textContent = gameReference
+    ? `Generating simple runnable "${gameReference}" game...\n`
+    : instant
+      ? `Loading instant template...\n`
+      : `Connecting to 8Gen AI engine (custom synthesis)...\n`;
 
   if (!isWsEnabled()) {
-    fallbackHttpGenerate(prompt, category, instant);
+    fallbackHttpGenerate(prompt, gameReference, instant);
     return;
   }
 
@@ -527,13 +665,13 @@ async function handleGenerate() {
   if (ws) {
     ws.onopen = () => {
       opened = true;
-      ws.send(JSON.stringify({ prompt, category, instant }));
+      ws.send(JSON.stringify({ prompt, game_reference: gameReference, instant }));
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "start") {
-        streamPanel.textContent += `Synthesizing game for: "${prompt}"...\n\n`;
+        streamPanel.textContent += `Synthesizing game for: "${data.prompt || prompt}"...\n\n`;
       } else if (data.type === "delta") {
         streamPanel.textContent += data.chunk;
         streamPanel.scrollTop = streamPanel.scrollHeight;
@@ -541,8 +679,7 @@ async function handleGenerate() {
         completed = true;
         streamPanel.textContent += "\n\n✔ Game successfully synthesized and validated!";
         streamPanel.scrollTop = streamPanel.scrollHeight;
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+        setGenerationBusy(false);
         if (data.game) {
           cacheGameLocally(data.game);
           loadGameIntoWorkbench(data.game.id, data.game.title);
@@ -551,14 +688,14 @@ async function handleGenerate() {
       } else if (data.type === "error") {
         errored = true;
         streamPanel.textContent += `\n\n✖ Notice: ${data.message}\nFalling back to REST generation...`;
-        fallbackHttpGenerate(prompt, category, instant);
+        fallbackHttpGenerate(prompt, gameReference, instant);
       }
     };
 
     ws.onerror = () => {
       if (!completed && !errored) {
         errored = true;
-        fallbackHttpGenerate(prompt, category, instant);
+        fallbackHttpGenerate(prompt, gameReference, instant);
       }
     };
 
@@ -566,21 +703,19 @@ async function handleGenerate() {
       if (!completed && !errored) {
         if (!opened) {
           errored = true;
-          fallbackHttpGenerate(prompt, category, instant);
+          fallbackHttpGenerate(prompt, gameReference, instant);
         } else {
-          generateBtn.disabled = false;
-          generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+          setGenerationBusy(false);
           streamPanel.textContent += "\n\n⚠️ Connection closed unexpectedly. Please try again.";
         }
       }
     };
   } else {
-    fallbackHttpGenerate(prompt, category, instant);
+    fallbackHttpGenerate(prompt, gameReference, instant);
   }
 }
 
-async function fallbackHttpGenerate(prompt, category, instant) {
-  const generateBtn = document.getElementById("generate-btn");
+async function fallbackHttpGenerate(prompt, gameReference, instant) {
   const streamPanel = document.getElementById("stream-panel");
 
   try {
@@ -588,7 +723,7 @@ async function fallbackHttpGenerate(prompt, category, instant) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, category, instant }),
+      body: JSON.stringify({ prompt, game_reference: gameReference, instant }),
     });
 
     if (!res.ok) {
@@ -604,8 +739,7 @@ async function fallbackHttpGenerate(prompt, category, instant) {
   } catch (err) {
     streamPanel.textContent += `\n✖ Error: ${err.message}`;
   } finally {
-    generateBtn.disabled = false;
-    generateBtn.innerHTML = `<span>⚡ Generate & Launch Game</span>`;
+    setGenerationBusy(false);
   }
 }
 
@@ -631,6 +765,7 @@ function loadGameIntoWorkbench(gameId, title) {
 
   const wbSection = document.getElementById("workbench");
   if (wbSection) {
+    setSnapCooldown(750);
     wbSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
@@ -649,6 +784,7 @@ window.loadArchetypeIntoWorkbench = function(type, title) {
 
   const wbSection = document.getElementById("workbench");
   if (wbSection) {
+    setSnapCooldown(750);
     wbSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 };

@@ -7,6 +7,7 @@ from typing import Callable, Dict, List, Optional, Any
 
 from eightgen.config.settings import Settings
 from eightgen.config.loader import get_settings
+from eightgen.core.engine.references import get_reference_spec
 from eightgen.core.generator import GameGenerator
 from eightgen.core.refiner import GameRefiner
 from eightgen.llm.factory import create_llm_provider
@@ -65,20 +66,27 @@ class Agent:
         stream_callback: Optional[Callable[[str], None]] = None,
         auto_open: Optional[bool] = None,
         instant: bool = False,
+        game_reference: Optional[str] = None,
     ) -> Game:
-        """Generate a brand new game from user prompt."""
-        logger.info(f"Generating game for prompt: '{prompt}' (instant={instant})...")
+        """Generate a brand new game from user prompt or simple game reference."""
+        ref_spec = get_reference_spec(game_reference) if game_reference else None
+        effective_prompt = (prompt or "").strip() or (ref_spec.prompt if ref_spec else "")
+        effective_category = category or (ref_spec.category if ref_spec else None)
+        logger.info(
+            f"Generating game for prompt: '{effective_prompt}' (ref={game_reference}, instant={instant})..."
+        )
 
         # Run generation pipeline
         html_content = await self.generator.generate(
-            prompt=prompt,
-            category=category,
+            prompt=effective_prompt,
+            category=effective_category,
             stream_callback=stream_callback,
             instant=instant,
+            game_reference=game_reference,
         )
 
         # Infer title and slug
-        extracted_title = extract_game_title(html_content, fallback=prompt[:30].strip())
+        extracted_title = extract_game_title(html_content, fallback=effective_prompt[:30].strip())
         slug = slugify(extracted_title)
         short_id = uuid.uuid4().hex[:8]
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -89,19 +97,24 @@ class Agent:
         active_model = getattr(self.provider, "model", self.settings.model)
         version = GameVersion(
             version=1,
-            prompt=prompt,
+            prompt=effective_prompt,
             html_content=html_content,
             model=active_model,
             change_summary="Initial generation",
         )
 
+        tag_source = effective_category or "arcade,instant"
+        tags = [t.strip() for t in tag_source.split(",") if t.strip()]
+        if ref_spec and ref_spec.id not in tags:
+            tags.append(ref_spec.id)
+
         game = Game(
             id=short_id,
             title=extracted_title,
             slug=slug,
-            description=prompt,
-            category=category or "arcade",
-            tags=[t.strip() for t in (category or "arcade,instant").split(",") if t.strip()],
+            description=effective_prompt,
+            category=effective_category or "arcade",
+            tags=tags,
             current_version=1,
             file_path=file_path,
             versions=[version],

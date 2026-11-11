@@ -3,6 +3,7 @@
 from typing import Callable, Optional
 from eightgen.config.settings import Settings
 from eightgen.core.engine.archetypes import build_smart_archetype
+from eightgen.core.engine.references import build_simple_reference_game
 from eightgen.core.extractor import HTMLExtractor
 from eightgen.core.validator import GameValidator, ValidationResult
 from eightgen.llm.base import LLMProvider
@@ -40,18 +41,28 @@ class GameGenerator:
         category: Optional[str] = None,
         stream_callback: Optional[Callable[[str], None]] = None,
         instant: bool = False,
+        game_reference: Optional[str] = None,
     ) -> str:
         """Generate a complete, validated HTML5 game from a prompt."""
         await self.plugins.trigger_pre_generate(prompt, category)
 
-        # Fast path: instant archetype compilation
+        def _build_instant_or_fallback() -> str:
+            if game_reference:
+                ref_html = build_simple_reference_game(game_reference)
+                if ref_html:
+                    return ref_html
+            return build_smart_archetype(prompt, category or "")
+
+        # Fast path: instant reference/archetype compilation
         if instant:
-            logger.info("Instant mode requested; compiling guaranteed playable game archetype...")
-            html = build_smart_archetype(prompt, category or "")
+            logger.info("Instant mode requested; compiling guaranteed playable game...")
+            html = _build_instant_or_fallback()
             await self.plugins.trigger_post_generate(prompt, html)
             return html
 
-        base_messages = self.prompt_builder.build_generate_messages(prompt, category)
+        base_messages = self.prompt_builder.build_generate_messages(
+            prompt, category, game_reference=game_reference
+        )
         messages = base_messages
         max_attempts = max(1, self.settings.max_retries)
         last_errors = []
@@ -95,9 +106,9 @@ class GameGenerator:
                     raw_output = response.content
             except ValueError as exc:
                 # Configuration error (e.g., missing API key) - don't retry uselessly
-                logger.warning(f"LLM configuration error: {exc}. Falling back to guaranteed playable engine archetype.")
-                await _notify(f"\n⚠️ AI generation notice: {exc}\n⚡ Loading instant playable archetype...\n")
-                fallback_html = build_smart_archetype(prompt, category or "")
+                logger.warning(f"LLM configuration error: {exc}. Falling back to guaranteed playable game.")
+                await _notify(f"\n⚠️ AI generation notice: {exc}\n⚡ Loading instant playable game...\n")
+                fallback_html = _build_instant_or_fallback()
                 await self.plugins.trigger_post_generate(prompt, fallback_html)
                 return fallback_html
             except Exception as exc:
@@ -132,9 +143,9 @@ class GameGenerator:
             logger.warning("Max retries reached; returning best effort HTML.")
             return html_code
 
-        logger.warning(f"Retries exhausted ({last_errors}). Falling back to guaranteed playable engine archetype.")
-        await _notify(f"\n⚠️ Retries exhausted ({'; '.join(last_errors)}). Loading instant playable archetype...\n")
-        fallback_html = build_smart_archetype(prompt, category or "")
+        logger.warning(f"Retries exhausted ({last_errors}). Falling back to guaranteed playable game.")
+        await _notify(f"\n⚠️ Retries exhausted ({'; '.join(last_errors)}). Loading instant playable game...\n")
+        fallback_html = _build_instant_or_fallback()
         await self.plugins.trigger_post_generate(prompt, fallback_html)
         return fallback_html
 

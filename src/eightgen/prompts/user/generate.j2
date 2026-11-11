@@ -1,6 +1,14 @@
 Create an instant, playable HTML5 game based on this description:
 
 **Game Idea**: {{ prompt }}
+{% if reference_spec %}
+**Game Reference Mode**: {{ reference_spec.label }}
+Generate a **simpler, lightweight, immediately runnable** version of {{ reference_spec.label }}:
+- **Simple Controls**: {{ reference_spec.controls }}
+- **Simple Game Logic**: {{ reference_spec.mechanics }}
+- Keep code concise, self-contained in a single HTML file, with a clean scoreboard, clear win/lose or game-over overlay, and an instant Restart button.
+- Avoid complex multi-stage upgrades, heavy shaders, or convoluted rules — prioritize straightforward, responsive, bug-free gameplay from the first click/keypress.
+{% endif %}
 {% if category %}
 **Category**: {{ category }}
 {% endif %}

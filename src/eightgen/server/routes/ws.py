@@ -22,9 +22,10 @@ async def websocket_generate(websocket: WebSocket):
         category = data.get("category")
         override_model = data.get("model")
         instant = data.get("instant", False)
+        game_reference = data.get("game_reference")
 
-        if not prompt:
-            await websocket.send_json({"type": "error", "message": "Prompt is required."})
+        if not prompt and not game_reference:
+            await websocket.send_json({"type": "error", "message": "Prompt or game_reference is required."})
             await websocket.close()
             return
 
@@ -38,7 +39,7 @@ async def websocket_generate(websocket: WebSocket):
                 pass
 
         # Notify started
-        await websocket.send_json({"type": "start", "prompt": prompt})
+        await websocket.send_json({"type": "start", "prompt": prompt or game_reference})
 
         game = await agent.create_game(
             prompt=prompt,
@@ -46,6 +47,7 @@ async def websocket_generate(websocket: WebSocket):
             stream_callback=_stream_delta,
             auto_open=False,
             instant=instant,
+            game_reference=game_reference,
         )
 
         await websocket.send_json({

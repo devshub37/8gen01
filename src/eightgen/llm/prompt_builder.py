@@ -12,13 +12,19 @@ class PromptBuilder:
         self.loader = get_prompt_loader()
 
     def build_generate_messages(
-        self, prompt: str, category: Optional[str] = None
+        self,
+        prompt: str,
+        category: Optional[str] = None,
+        game_reference: Optional[str] = None,
     ) -> List[LLMMessage]:
         """Construct system and user messages for a new game."""
+        from eightgen.core.engine.references import get_reference_spec
+
         system_content = self.loader.render("system/game_generator.j2", {})
+        reference_spec = get_reference_spec(game_reference) if game_reference else None
 
         skeleton_hint = ""
-        if category:
+        if category and not reference_spec:
             cat_clean = category.lower().strip()
             if cat_clean in ["arcade", "shooter", "action"]:
                 skeleton_hint = self.loader.render("examples/arcade.j2", {})
@@ -33,6 +39,7 @@ class PromptBuilder:
                 "prompt": prompt,
                 "category": category,
                 "skeleton_hint": skeleton_hint,
+                "reference_spec": reference_spec,
             },
         )
 

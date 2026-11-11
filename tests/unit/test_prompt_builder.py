@@ -30,3 +30,19 @@ def test_build_fix_messages():
     assert messages[0].role == "system"
     assert "debugger" in messages[0].content.lower()
     assert "Missing </html> tag." in messages[1].content
+
+
+def test_build_generate_messages_with_reference():
+    builder = PromptBuilder()
+    messages = builder.build_generate_messages(
+        "Classic simple Pong game",
+        category="arcade",
+        game_reference="pong",
+    )
+    assert len(messages) == 2
+    user_prompt = messages[1].content
+    assert "Game Reference Mode" in user_prompt
+    assert "Pong (Classic Paddle)" in user_prompt
+    assert "Simple Controls" in user_prompt
+    assert "Simple Game Logic" in user_prompt
+    assert "Architecture Advice" not in user_prompt

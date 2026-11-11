@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from eightgen.config.loader import get_settings
 from eightgen.config.settings import is_vercel
 from eightgen.core.agent import Agent
+from eightgen.core.engine.references import REFERENCE_GAMES
 from eightgen.server.routes.games import router as games_router
 from eightgen.server.routes.generate import router as generate_router
 from eightgen.server.routes.ws import router as ws_router
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
                 "provider": current_settings.provider,
                 "has_key": bool(current_settings.gemini_api_key),
                 "is_vercel": is_vercel(),
+                "references": REFERENCE_GAMES,
             },
         )
 
