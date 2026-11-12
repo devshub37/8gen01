@@ -9,6 +9,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/design-system.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("eightgen_theme_v1");
+        if (saved === "light" || saved === "dark" || saved === "gaming") {
+          document.documentElement.setAttribute("data-theme", saved);
+        } else {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -36,6 +50,15 @@
           <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--color-success); margin-right: 4px;"></span>
           <span id="active-model-nav">{{ model_name }}</span>
         </div>
+        <button
+          id="theme-toggle-btn"
+          type="button"
+          class="btn-secondary theme-switch-btn"
+          title="Switch UI theme (Light / Dark / Gaming)"
+          aria-label="Switch theme"
+        >
+          ☀️ Light
+        </button>
         <a href="/#workbench" class="btn-primary" style="height: 36px; padding: 8px 16px; font-size: 13px;">
           + New Game
         </a>

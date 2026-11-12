@@ -4,8 +4,17 @@ let activeGameId = null;
 let selectedGameReference = null;
 let lastReferencePrompt = "";
 let snapCooldownUntil = 0;
+let wbController = null;
+let modalController = null;
 const generatedHtmlCache = {};
 const VERCEL_CACHE_KEY = "eightgen_vercel_games_v1";
+const THEME_KEY = "eightgen_theme_v1";
+const THEME_ORDER = ["light", "dark", "gaming"];
+const THEME_LABELS = {
+  light: "☀️ Light",
+  dark: "🌙 Dark",
+  gaming: "🎮 Gaming",
+};
 
 function setSnapCooldown(ms = 750) {
   snapCooldownUntil = Math.max(snapCooldownUntil, Date.now() + ms);
@@ -58,12 +67,338 @@ function getCachedGames() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  setupThemeSwitcher();
+  setupGameControllers();
   setupNavScrollIndicator();
   setupGameReferenceSelector();
   setupEventListeners();
   setupViewportFocus();
   fetchGames();
 });
+
+function applyTheme(themeName) {
+  const resolved = THEME_ORDER.includes(themeName) ? themeName : "light";
+  document.documentElement.setAttribute("data-theme", resolved);
+  try {
+    localStorage.setItem(THEME_KEY, resolved);
+  } catch (e) {}
+
+  const btn = document.getElementById("theme-toggle-btn");
+  if (btn) {
+    btn.textContent = THEME_LABELS[resolved];
+    btn.setAttribute("data-theme-mode", resolved);
+  }
+}
+
+function setupThemeSwitcher() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  applyTheme(current);
+
+  const btn = document.getElementById("theme-toggle-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const active = document.documentElement.getAttribute("data-theme") || "light";
+    const idx = THEME_ORDER.indexOf(active);
+    const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
+    applyTheme(next);
+  });
+}
+
+function appendCtrlQuery(url) {
+  if (!url) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return url.includes("ctrl=") ? url : `${url}${sep}ctrl=1`;
+}
+
+function injectControlShimIntoHtml(html) {
+  if (!html || html.includes("window.__egCtrl")) return html;
+  const shim = `<script>
+(function () {
+  if (window.__egCtrl) return;
+  var paused = false, offset = 0, pAt = null;
+  var oRaf = window.requestAnimationFrame.bind(window);
+  var oCRaf = window.cancelAnimationFrame.bind(window);
+  var oSI = window.setInterval.bind(window);
+  var oCI = window.clearInterval.bind(window);
+  var oPNow = (window.performance && window.performance.now)
+    ? window.performance.now.bind(window.performance)
+    : function () { return Date.now(); };
+  var vid = 1, rafState = new Map(), queuedIds = [], intervals = new Map(), iid = 900000, audioCtxs = [];
+  if (window.performance) {
+    try { Object.defineProperty(window.performance, "now", { configurable: true, value: function () { return (pAt !== null ? pAt : oPNow()) - offset; } }); } catch (e) {}
+  }
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (AC) {
+    var WAC = function () { var c = new AC(); audioCtxs.push(c); return c; };
+    WAC.prototype = AC.prototype;
+    try { if (window.AudioContext) window.AudioContext = WAC; if (window.webkitAudioContext) window.webkitAudioContext = WAC; } catch (e) {}
+  }
+  function scheduleVirtualRaf(id, cb) {
+    if (paused) { queuedIds.push(id); return; }
+    var realId = oRaf(function (ts) {
+      var entry = rafState.get(id);
+      if (!entry || entry.cancelled) { rafState.delete(id); return; }
+      if (paused) { entry.realId = null; queuedIds.push(id); return; }
+      rafState.delete(id);
+      cb(ts - offset);
+    });
+    var entry = rafState.get(id);
+    if (entry) entry.realId = realId;
+  }
+  window.requestAnimationFrame = function (cb) {
+    var id = vid++;
+    rafState.set(id, { cb: cb, realId: null, cancelled: false });
+    scheduleVirtualRaf(id, cb);
+    return id;
+  };
+  window.cancelAnimationFrame = function (id) {
+    var entry = rafState.get(id);
+    if (entry) { entry.cancelled = true; if (entry.realId !== null) oCRaf(entry.realId); rafState.delete(id); } else { oCRaf(id); }
+  };
+  window.setInterval = function (fn, ms) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    var id = iid++;
+    intervals.set(id, oSI(function () { if (!paused && typeof fn === "function") fn.apply(window, args); }, ms));
+    return id;
+  };
+  window.clearInterval = function (id) {
+    if (intervals.has(id)) { oCI(intervals.get(id)); intervals.delete(id); } else { oCI(id); }
+  };
+  window.__egCtrl = {
+    pause: function () {
+      if (paused) return;
+      paused = true; pAt = oPNow();
+      audioCtxs.forEach(function (c) { try { if (c.state === "running") c.suspend(); } catch (e) {} });
+    },
+    resume: function () {
+      if (!paused) return;
+      paused = false;
+      if (pAt !== null) { offset += oPNow() - pAt; pAt = null; }
+      audioCtxs.forEach(function (c) { try { if (c.state === "suspended") c.resume(); } catch (e) {} });
+      var ids = queuedIds.slice(); queuedIds = [];
+      ids.forEach(function (id) { var entry = rafState.get(id); if (entry && !entry.cancelled) scheduleVirtualRaf(id, entry.cb); });
+    },
+    isPaused: function () { return paused; }
+  };
+})();
+</` + `script>`;
+  if (/<head\b[^>]*>/i.test(html)) {
+    return html.replace(/<head\b[^>]*>/i, (m) => `${m}\n${shim}`);
+  }
+  return `${shim}\n${html}`;
+}
+
+function createIframeGameController(config) {
+  const iframe = document.getElementById(config.iframeId);
+  if (!iframe) return null;
+
+  const titleEl = config.titleId ? document.getElementById(config.titleId) : null;
+  const dotEl = config.dotId ? document.getElementById(config.dotId) : null;
+  const pauseBtn = config.pauseBtnId ? document.getElementById(config.pauseBtnId) : null;
+  const restartBtn = config.restartBtnId ? document.getElementById(config.restartBtnId) : null;
+  const exitBtn = config.exitBtnId ? document.getElementById(config.exitBtnId) : null;
+  const pauseOverlay = config.pauseOverlayId ? document.getElementById(config.pauseOverlayId) : null;
+  const idleOverlay = config.idleOverlayId ? document.getElementById(config.idleOverlayId) : null;
+
+  const state = {
+    iframe,
+    paused: false,
+    exited: false,
+    lastSource: config.initialSource || null,
+  };
+
+  function syncUi() {
+    if (dotEl) {
+      dotEl.classList.toggle("is-paused", state.paused && !state.exited);
+      dotEl.classList.toggle("is-exited", state.exited);
+    }
+    if (pauseBtn) {
+      pauseBtn.disabled = state.exited;
+      pauseBtn.classList.toggle("is-active", state.paused && !state.exited);
+      pauseBtn.textContent = state.paused ? "▶ Resume" : "⏸ Pause";
+    }
+    if (restartBtn) {
+      restartBtn.disabled = !state.lastSource;
+    }
+    if (exitBtn) {
+      exitBtn.disabled = state.exited;
+    }
+    if (pauseOverlay) {
+      pauseOverlay.classList.toggle("is-visible", state.paused && !state.exited);
+    }
+    if (idleOverlay) {
+      idleOverlay.classList.toggle("is-visible", state.exited);
+    }
+  }
+
+  function focusFrame() {
+    try {
+      if (iframe.contentWindow) iframe.contentWindow.focus();
+    } catch (e) {}
+  }
+
+  function loadSource(source) {
+    if (!source) return;
+    state.lastSource = source;
+    state.paused = false;
+    state.exited = false;
+    if (titleEl && source.title) titleEl.innerText = source.title;
+
+    if (source.useSrcdoc && source.srcdoc) {
+      iframe.dataset.useSrcdoc = "1";
+      iframe.removeAttribute("src");
+      iframe.srcdoc = injectControlShimIntoHtml(source.srcdoc);
+    } else if (source.src) {
+      iframe.dataset.useSrcdoc = "0";
+      iframe.removeAttribute("srcdoc");
+      const base = source.src.replace(/([?&])t=\d+/g, "").replace(/[?&]$/, "");
+      const withTime = `${base}${base.includes("?") ? "&" : "?"}t=${Date.now()}`;
+      iframe.src = appendCtrlQuery(withTime);
+    }
+    syncUi();
+    setTimeout(focusFrame, 300);
+  }
+
+  function pause() {
+    if (state.exited || state.paused) return;
+    state.paused = true;
+    try {
+      const win = iframe.contentWindow;
+      if (win && win.__egCtrl) {
+        win.__egCtrl.pause();
+      }
+    } catch (e) {}
+    syncUi();
+    if (pauseOverlay) pauseOverlay.focus();
+  }
+
+  function resume() {
+    if (state.exited || !state.paused) return;
+    state.paused = false;
+    try {
+      const win = iframe.contentWindow;
+      if (win && win.__egCtrl) {
+        win.__egCtrl.resume();
+      }
+    } catch (e) {}
+    syncUi();
+    setTimeout(focusFrame, 80);
+  }
+
+  function togglePause() {
+    if (state.paused) resume();
+    else pause();
+  }
+
+  function restart() {
+    if (!state.lastSource) return;
+    loadSource(state.lastSource);
+  }
+
+  function exit() {
+    state.paused = false;
+    state.exited = true;
+    try {
+      const win = iframe.contentWindow;
+      if (win && win.__egCtrl) win.__egCtrl.pause();
+    } catch (e) {}
+    iframe.dataset.useSrcdoc = "0";
+    iframe.removeAttribute("srcdoc");
+    iframe.src = "about:blank";
+    if (config.onExit) {
+      config.onExit();
+    } else if (titleEl) {
+      titleEl.innerText = "No Active Game";
+    }
+    syncUi();
+  }
+
+  iframe.addEventListener("load", () => {
+    if (state.exited) return;
+    try {
+      const win = iframe.contentWindow;
+      if (win && !win.__egCtrl && win.location && win.location.href !== "about:blank") {
+        // Fallback patch if external game loaded without query control shim
+        const script = iframe.contentDocument && iframe.contentDocument.createElement("script");
+        if (script) {
+          script.textContent = injectControlShimIntoHtml("<head></head>").replace(/<\/?head>/g, "");
+          iframe.contentDocument.head && iframe.contentDocument.head.prepend(script);
+        }
+      }
+    } catch (e) {}
+    if (state.paused) {
+      pause();
+    }
+  });
+
+  if (pauseBtn) pauseBtn.addEventListener("click", togglePause);
+  if (restartBtn) restartBtn.addEventListener("click", restart);
+  if (exitBtn) exitBtn.addEventListener("click", exit);
+  (config.resumeTriggerIds || []).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", resume);
+  });
+  (config.restartTriggerIds || []).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", restart);
+  });
+  (config.exitTriggerIds || []).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", exit);
+  });
+
+  syncUi();
+
+  return {
+    get paused() {
+      return state.paused;
+    },
+    get exited() {
+      return state.exited;
+    },
+    loadSource,
+    pause,
+    resume,
+    togglePause,
+    restart,
+    exit,
+  };
+}
+
+function setupGameControllers() {
+  wbController = createIframeGameController({
+    iframeId: "workbench-frame",
+    titleId: "workbench-title-label",
+    dotId: "wb-status-dot",
+    pauseBtnId: "wb-pause-btn",
+    restartBtnId: "wb-restart-btn",
+    exitBtnId: "wb-exit-btn",
+    pauseOverlayId: "wb-pause-overlay",
+    idleOverlayId: "wb-idle-overlay",
+    resumeTriggerIds: ["wb-overlay-resume-btn"],
+    restartTriggerIds: ["wb-overlay-restart-btn", "wb-relaunch-btn"],
+    exitTriggerIds: ["wb-overlay-exit-btn"],
+    initialSource: {
+      title: "Live Viewport: Neon Space Defender",
+      src: "/api/games/archetype/shooter",
+      useSrcdoc: false,
+    },
+  });
+
+  modalController = createIframeGameController({
+    iframeId: "game-frame",
+    titleId: "modal-game-title",
+    dotId: "modal-status-dot",
+    pauseBtnId: "modal-pause-btn",
+    restartBtnId: "modal-restart-btn",
+    exitBtnId: "modal-close",
+    pauseOverlayId: "modal-pause-overlay",
+    resumeTriggerIds: ["modal-overlay-resume-btn"],
+    restartTriggerIds: ["modal-overlay-restart-btn"],
+    exitTriggerIds: ["modal-overlay-exit-btn"],
+    onExit: closeModalDom,
+  });
+}
 
 function setupNavScrollIndicator() {
   const navLinksContainer = document.getElementById("nav-links");
@@ -193,7 +528,7 @@ function setupNavScrollIndicator() {
 
   function scheduleSnap() {
     if (snapSettleTimer) clearTimeout(snapSettleTimer);
-    snapSettleTimer = setTimeout(snapToNearestPage, 150);
+    snapSettleTimer = setTimeout(snapToNearestPage, 110);
   }
 
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
@@ -345,6 +680,9 @@ function setupViewportFocus() {
     if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
       return;
     }
+    if (wbController && (wbController.paused || wbController.exited)) {
+      return;
+    }
     const handledKeys = ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD"];
     if (handledKeys.includes(e.code)) {
       const wb = document.getElementById("workbench-frame");
@@ -359,6 +697,9 @@ function setupViewportFocus() {
 }
 
 function focusWorkbenchFrame() {
+  if (wbController && (wbController.paused || wbController.exited)) {
+    return;
+  }
   const wb = document.getElementById("workbench-frame");
   if (wb && wb.contentWindow) {
     try {
@@ -370,11 +711,9 @@ function focusWorkbenchFrame() {
 function setupEventListeners() {
   const generateBtn = document.getElementById("generate-btn");
   const promptInput = document.getElementById("prompt-input");
-  const modalClose = document.getElementById("modal-close");
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   const refreshGamesBtn = document.getElementById("refresh-games-btn");
   const saveKeyBtn = document.getElementById("save-key-btn");
-  const wbRestartBtn = document.getElementById("wb-restart-btn");
   const wbFullscreenBtn = document.getElementById("wb-fullscreen-btn");
 
   if (generateBtn) {
@@ -390,38 +729,11 @@ function setupEventListeners() {
     });
   }
 
-  if (modalClose) {
-    modalClose.addEventListener("click", closeModal);
-  }
-
   if (fullscreenBtn) {
     fullscreenBtn.addEventListener("click", () => {
       const iframe = document.getElementById("game-frame");
       if (iframe && iframe.requestFullscreen) {
         iframe.requestFullscreen();
-      }
-    });
-  }
-
-  if (wbRestartBtn) {
-    wbRestartBtn.addEventListener("click", () => {
-      const wb = document.getElementById("workbench-frame");
-      if (wb) {
-        if (wb.dataset.useSrcdoc === "1") {
-          const doc = wb.srcdoc;
-          wb.srcdoc = "";
-          setTimeout(() => {
-            wb.srcdoc = doc;
-            setTimeout(focusWorkbenchFrame, 300);
-          }, 60);
-        } else {
-          const src = wb.src;
-          wb.src = "about:blank";
-          setTimeout(() => {
-            wb.src = src;
-            setTimeout(focusWorkbenchFrame, 300);
-          }, 60);
-        }
       }
     });
   }
@@ -745,22 +1057,27 @@ async function fallbackHttpGenerate(prompt, gameReference, instant) {
 
 function loadGameIntoWorkbench(gameId, title) {
   activeGameId = gameId;
-  const wbFrame = document.getElementById("workbench-frame");
-  const wbTitle = document.getElementById("workbench-title-label");
+  const cachedHtml = generatedHtmlCache[gameId];
+  const useSrcdoc = !isWsEnabled() && Boolean(cachedHtml);
+  const source = useSrcdoc
+    ? { title: `Live Viewport: ${title}`, useSrcdoc: true, srcdoc: cachedHtml }
+    : { title: `Live Viewport: ${title}`, useSrcdoc: false, src: `/api/games/${gameId}/play` };
 
-  if (wbTitle) wbTitle.innerText = `Live Viewport: ${title}`;
-  if (wbFrame) {
-    const cachedHtml = generatedHtmlCache[gameId];
-    if (!isWsEnabled() && cachedHtml) {
-      wbFrame.dataset.useSrcdoc = "1";
-      wbFrame.removeAttribute("src");
-      wbFrame.srcdoc = cachedHtml;
-    } else {
-      wbFrame.dataset.useSrcdoc = "0";
-      wbFrame.removeAttribute("srcdoc");
-      wbFrame.src = `/api/games/${gameId}/play?t=${Date.now()}`;
+  if (wbController) {
+    wbController.loadSource(source);
+  } else {
+    const wbFrame = document.getElementById("workbench-frame");
+    const wbTitle = document.getElementById("workbench-title-label");
+    if (wbTitle) wbTitle.innerText = source.title;
+    if (wbFrame) {
+      if (useSrcdoc) {
+        wbFrame.removeAttribute("src");
+        wbFrame.srcdoc = injectControlShimIntoHtml(cachedHtml);
+      } else {
+        wbFrame.removeAttribute("srcdoc");
+        wbFrame.src = appendCtrlQuery(`/api/games/${gameId}/play?t=${Date.now()}`);
+      }
     }
-    setTimeout(focusWorkbenchFrame, 350);
   }
 
   const wbSection = document.getElementById("workbench");
@@ -771,15 +1088,21 @@ function loadGameIntoWorkbench(gameId, title) {
 }
 
 window.loadArchetypeIntoWorkbench = function(type, title) {
-  const wbFrame = document.getElementById("workbench-frame");
-  const wbTitle = document.getElementById("workbench-title-label");
-
-  if (wbTitle) wbTitle.innerText = `Live Viewport: ${title}`;
-  if (wbFrame) {
-    wbFrame.dataset.useSrcdoc = "0";
-    wbFrame.removeAttribute("srcdoc");
-    wbFrame.src = `/api/games/archetype/${type}?t=${Date.now()}`;
-    setTimeout(focusWorkbenchFrame, 350);
+  const source = {
+    title: `Live Viewport: ${title}`,
+    useSrcdoc: false,
+    src: `/api/games/archetype/${type}`,
+  };
+  if (wbController) {
+    wbController.loadSource(source);
+  } else {
+    const wbFrame = document.getElementById("workbench-frame");
+    const wbTitle = document.getElementById("workbench-title-label");
+    if (wbTitle) wbTitle.innerText = source.title;
+    if (wbFrame) {
+      wbFrame.removeAttribute("srcdoc");
+      wbFrame.src = appendCtrlQuery(`/api/games/archetype/${type}?t=${Date.now()}`);
+    }
   }
 
   const wbSection = document.getElementById("workbench");
@@ -881,19 +1204,35 @@ function getCategoryIcon(cat) {
 function openGame(gameId, title) {
   activeGameId = gameId;
   const modal = document.getElementById("game-modal");
-  const modalTitle = document.getElementById("modal-game-title");
-  const iframe = document.getElementById("game-frame");
-
-  if (modalTitle) modalTitle.innerText = title || "Play Game";
-  if (iframe) iframe.src = `/api/games/${gameId}/play?t=${Date.now()}`;
+  const source = {
+    title: title || "Play Game",
+    useSrcdoc: false,
+    src: `/api/games/${gameId}/play`,
+  };
+  if (modalController) {
+    modalController.loadSource(source);
+  } else {
+    const modalTitle = document.getElementById("modal-game-title");
+    const iframe = document.getElementById("game-frame");
+    if (modalTitle) modalTitle.innerText = source.title;
+    if (iframe) iframe.src = appendCtrlQuery(`${source.src}?t=${Date.now()}`);
+  }
   if (modal) modal.style.display = "flex";
 }
 
-function closeModal() {
+function closeModalDom() {
   const modal = document.getElementById("game-modal");
-  const iframe = document.getElementById("game-frame");
   if (modal) modal.style.display = "none";
+}
+
+function closeModal() {
+  if (modalController) {
+    modalController.exit();
+    return;
+  }
+  const iframe = document.getElementById("game-frame");
   if (iframe) iframe.src = "about:blank";
+  closeModalDom();
 }
 
 function promptRefine(gameId, title) {

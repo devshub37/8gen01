@@ -97,3 +97,51 @@ async def test_generator_falls_back_to_simple_reference_game_on_config_error(tmp
     )
     assert "Simple Dino Runner" in html
     assert GameValidator.validate(html).is_valid
+
+
+def test_theme_switcher_playback_controls_and_ctrl_shim(monkeypatch, tmp_path):
+    monkeypatch.setenv("EIGHTGEN_OUTPUT_DIR", str(tmp_path / "games"))
+    monkeypatch.setenv("EIGHTGEN_DB_PATH", str(tmp_path / "8gen.db"))
+
+    app = create_app()
+    client = TestClient(app)
+
+    home = client.get("/")
+    assert home.status_code == 200
+    assert 'id="theme-toggle-btn"' in home.text
+    for btn_id in (
+        "wb-pause-btn",
+        "wb-restart-btn",
+        "wb-exit-btn",
+        "modal-pause-btn",
+        "modal-restart-btn",
+        "modal-close",
+    ):
+        assert f'id="{btn_id}"' in home.text
+
+    css = client.get("/static/css/design-system.css")
+    assert css.status_code == 200
+    for theme_name in ("light", "dark", "gaming"):
+        assert f'data-theme="{theme_name}"' in css.text
+
+    # Raw archetype vs ?ctrl=1 embedded shim
+    raw_arch = client.get("/api/games/archetype/shooter")
+    assert raw_arch.status_code == 200
+    assert "window.__egCtrl" not in raw_arch.text
+
+    ctrl_arch = client.get("/api/games/archetype/shooter?ctrl=1")
+    assert ctrl_arch.status_code == 200
+    assert "window.__egCtrl" in ctrl_arch.text
+
+    # Generated game play endpoint raw vs ?ctrl=1
+    created = client.post(
+        "/api/generate",
+        json={"prompt": "", "game_reference": "snake", "instant": True},
+    ).json()
+    raw_play = client.get(f"/api/games/{created['id']}/play")
+    assert raw_play.status_code == 200
+    assert "window.__egCtrl" not in raw_play.text
+
+    ctrl_play = client.get(f"/api/games/{created['id']}/play?ctrl=1")
+    assert ctrl_play.status_code == 200
+    assert "window.__egCtrl" in ctrl_play.text

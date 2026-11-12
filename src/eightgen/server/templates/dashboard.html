@@ -9,7 +9,7 @@
         <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;">
           <span class="badge-pill">v0.1.0 Alpha</span>
           <span class="badge-pill">Universal SaaS Design</span>
-          <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Zero Cloud Lock-In</span>
+          <span class="badge-pill status-live">● Zero Cloud Lock-In</span>
         </div>
 
         <h1 class="display-xl hero-title-compact">
@@ -24,7 +24,7 @@
       <!-- Compact Gemini Status / Key Setup Card -->
       <div class="product-mockup-card hero-gemini-card">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-          <div style="width: 28px; height: 28px; border-radius: 7px; background-color: var(--color-ink); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">
+          <div style="width: 28px; height: 28px; border-radius: 7px; background-color: var(--color-primary); color: var(--color-on-primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">
             ⚡
           </div>
           <div>
@@ -40,9 +40,9 @@
         {% if is_vercel %}
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
           {% if has_key %}
-          <span class="badge-pill" style="color: var(--color-success); border-color: #a7f3d0; background-color: #ecfdf5;">● Gemini API Configured</span>
+          <span class="badge-pill status-live">● Gemini API Configured</span>
           {% else %}
-          <span class="badge-pill" style="color: #b45309; border-color: #fde68a; background-color: #fffbeb;">⚠ Set GEMINI_API_KEY in Vercel Env</span>
+          <span class="badge-pill status-warn">⚠ Set GEMINI_API_KEY in Vercel Env</span>
           {% endif %}
           <div style="display: flex; gap: 8px;">
             <a href="#archetypes" class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 12px;">Archetypes</a>
@@ -151,25 +151,62 @@
         <!-- Workbench Right Pane: Live Viewport -->
         <div class="studio-viewport">
           <div class="viewport-toolbar">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-success);"></span>
-              <span id="workbench-title-label" style="font-weight: 600; color: #ffffff;">Live Viewport: Neon Space Defender</span>
+            <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+              <span id="wb-status-dot" class="viewport-status-dot"></span>
+              <span id="workbench-title-label" style="font-weight: 600; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Live Viewport: Neon Space Defender</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button id="wb-restart-btn" class="btn-icon-circular" style="background: #222; border-color: #333; color: #fff; width: 30px; height: 30px; font-size: 12px;" title="Restart Game">
-                🔄
+            <div class="viewport-controls">
+              <button id="wb-pause-btn" type="button" class="vp-ctrl-btn" title="Pause / Resume Game">
+                ⏸ Pause
               </button>
-              <button id="wb-fullscreen-btn" class="btn-icon-circular" style="background: #222; border-color: #333; color: #fff; width: 30px; height: 30px; font-size: 12px;" title="Fullscreen">
+              <button id="wb-restart-btn" type="button" class="vp-ctrl-btn" title="Restart Game">
+                🔄 Restart
+              </button>
+              <button id="wb-exit-btn" type="button" class="vp-ctrl-btn is-danger" title="Exit Game">
+                ⏹ Exit
+              </button>
+              <button id="wb-fullscreen-btn" type="button" class="vp-ctrl-btn" title="Fullscreen">
                 ⛶
               </button>
             </div>
           </div>
-          <iframe
-            id="workbench-frame"
-            class="viewport-frame"
-            src="/api/games/archetype/shooter"
-            sandbox="allow-scripts allow-same-origin allow-pointer-lock"
-          ></iframe>
+          <div class="viewport-frame-wrap">
+            <iframe
+              id="workbench-frame"
+              class="viewport-frame"
+              src="/api/games/archetype/shooter?ctrl=1"
+              sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+            ></iframe>
+            <div id="wb-pause-overlay" class="vp-overlay" tabindex="-1">
+              <div class="badge-pill status-warn" style="font-size: 13px; padding: 5px 14px;">⏸ Game Paused</div>
+              <div style="font-size: 14px; color: #d4d4d8; max-width: 320px;">
+                Game loop and timer are paused. Resume anytime or restart from scratch.
+              </div>
+              <div class="vp-overlay-actions">
+                <button id="wb-overlay-resume-btn" type="button" class="btn-primary" style="height: 36px; font-size: 13px;">
+                  ▶ Resume Game
+                </button>
+                <button id="wb-overlay-restart-btn" type="button" class="vp-ctrl-btn" style="height: 36px; padding: 0 14px; font-size: 13px;">
+                  🔄 Restart
+                </button>
+                <button id="wb-overlay-exit-btn" type="button" class="vp-ctrl-btn is-danger" style="height: 36px; padding: 0 14px; font-size: 13px;">
+                  ⏹ Exit
+                </button>
+              </div>
+            </div>
+            <div id="wb-idle-overlay" class="vp-overlay" tabindex="-1">
+              <div style="font-size: 30px;">🎮</div>
+              <div style="font-weight: 600; font-size: 16px; color: #ffffff;">Game Session Exited</div>
+              <div style="font-size: 13px; color: #a1a1aa; max-width: 340px;">
+                Select a Game Reference on the left or relaunch your previous game to start playing again.
+              </div>
+              <div class="vp-overlay-actions">
+                <button id="wb-relaunch-btn" type="button" class="btn-primary" style="height: 36px; font-size: 13px;">
+                  ▶ Relaunch Last Game
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -177,83 +214,83 @@
 </section>
 
 <!-- 2. Page 2: Guaranteed Playable Archetypes + Built-in Engine Architecture -->
-<section id="archetypes" class="page-section surface-soft">
+<section id="archetypes" class="page-section page-section-centered surface-soft">
   <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
       <div>
-        <div class="badge-pill" style="margin-bottom: 8px;">Zero Latency</div>
-        <h2 class="display-sm" style="margin-bottom: 6px;">Guaranteed Playable Archetypes</h2>
+        <div class="badge-pill" style="margin-bottom: 6px;">Zero Latency</div>
+        <h2 class="display-sm" style="margin-bottom: 4px;">Guaranteed Playable Archetypes</h2>
         <p class="body-sm" style="max-width: 600px;">
           Ready-to-run arcade archetypes engineered with zero-dependency canvas physics, procedural Web Audio synthesis, and particle effects.
         </p>
       </div>
-      <a href="#workbench" class="btn-secondary">Back to Studio Workbench</a>
+      <a href="#workbench" class="btn-secondary" style="height: 36px; padding: 0 14px; font-size: 13px;">Back to Studio Workbench</a>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
       <!-- Archetype 1: Space Shooter -->
-      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
-        <div style="font-size: 28px; margin-bottom: 10px;">🚀</div>
-        <h3 class="title-md" style="margin-bottom: 6px;">Space Defender</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
+      <div class="product-mockup-card" style="padding: 16px; display: flex; flex-direction: column;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🚀</div>
+        <h3 class="title-md" style="margin-bottom: 4px; font-size: 16px;">Space Defender</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 12px; font-size: 13px;">
           Dual laser cannons, alien attack waves, powerup drops (weapon boost & shield), particle thrusters, and boss encounters.
         </p>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" style="flex: 1; height: 36px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('shooter', 'Neon Space Defender')">
+          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('shooter', 'Neon Space Defender')">
             ▶ Play Now
           </button>
-          <a href="/api/games/archetype/shooter" target="_blank" class="btn-secondary" style="height: 36px; font-size: 13px;">
+          <a href="/api/games/archetype/shooter" target="_blank" class="btn-secondary" style="height: 34px; font-size: 13px;">
             ↗ Open
           </a>
         </div>
       </div>
 
       <!-- Archetype 2: Cyber Snake -->
-      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
-        <div style="font-size: 28px; margin-bottom: 10px;">🐍</div>
-        <h3 class="title-md" style="margin-bottom: 6px;">Cyber Snake 2099</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
+      <div class="product-mockup-card" style="padding: 16px; display: flex; flex-direction: column;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🐍</div>
+        <h3 class="title-md" style="margin-bottom: 4px; font-size: 16px;">Cyber Snake 2099</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 12px; font-size: 13px;">
           Grid-aligned snake movement with speed interpolation, golden fruit bonuses, glowing trail particles, and high score records.
         </p>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" style="flex: 1; height: 36px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('snake', 'Cyber Snake 2099')">
+          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('snake', 'Cyber Snake 2099')">
             ▶ Play Now
           </button>
-          <a href="/api/games/archetype/snake" target="_blank" class="btn-secondary" style="height: 36px; font-size: 13px;">
+          <a href="/api/games/archetype/snake" target="_blank" class="btn-secondary" style="height: 34px; font-size: 13px;">
             ↗ Open
           </a>
         </div>
       </div>
 
       <!-- Archetype 3: Brick Breaker -->
-      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
-        <div style="font-size: 28px; margin-bottom: 10px;">🧱</div>
-        <h3 class="title-md" style="margin-bottom: 6px;">Quantum Breakout</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
+      <div class="product-mockup-card" style="padding: 16px; display: flex; flex-direction: column;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🧱</div>
+        <h3 class="title-md" style="margin-bottom: 4px; font-size: 16px;">Quantum Breakout</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 12px; font-size: 13px;">
           Angular paddle deflection, multi-hit destructible bricks, ball particle trails, and lives counter with sound synthesis.
         </p>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" style="flex: 1; height: 36px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('brick', 'Quantum Breakout')">
+          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('brick', 'Quantum Breakout')">
             ▶ Play Now
           </button>
-          <a href="/api/games/archetype/brick" target="_blank" class="btn-secondary" style="height: 36px; font-size: 13px;">
+          <a href="/api/games/archetype/brick" target="_blank" class="btn-secondary" style="height: 34px; font-size: 13px;">
             ↗ Open
           </a>
         </div>
       </div>
 
       <!-- Archetype 4: Aero Drone -->
-      <div class="product-mockup-card" style="padding: 20px; display: flex; flex-direction: column;">
-        <div style="font-size: 28px; margin-bottom: 10px;">⚡</div>
-        <h3 class="title-md" style="margin-bottom: 6px;">Aero Drone Odyssey</h3>
-        <p class="body-sm" style="flex: 1; margin-bottom: 16px;">
+      <div class="product-mockup-card" style="padding: 16px; display: flex; flex-direction: column;">
+        <div style="font-size: 24px; margin-bottom: 8px;">⚡</div>
+        <h3 class="title-md" style="margin-bottom: 4px; font-size: 16px;">Aero Drone Odyssey</h3>
+        <p class="body-sm" style="flex: 1; margin-bottom: 12px; font-size: 13px;">
           One-button tap/space gravity flight mechanics, moving neon obstacle pillars, bonus energy orbs, and screen shake on crash.
         </p>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" style="flex: 1; height: 36px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('drone', 'Aero Drone Odyssey')">
+          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 13px;" onclick="loadArchetypeIntoWorkbench('drone', 'Aero Drone Odyssey')">
             ▶ Play Now
           </button>
-          <a href="/api/games/archetype/drone" target="_blank" class="btn-secondary" style="height: 36px; font-size: 13px;">
+          <a href="/api/games/archetype/drone" target="_blank" class="btn-secondary" style="height: 34px; font-size: 13px;">
             ↗ Open
           </a>
         </div>
@@ -261,33 +298,33 @@
     </div>
 
     <!-- Compact Engine Architecture Pillars -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px;">
-      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-          <span style="font-size: 18px;">🎮</span>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 16px;">
+      <div class="feature-card" style="padding: 14px 16px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="font-size: 16px;">🎮</span>
           <h3 class="title-sm" style="font-size: 14px;">Zero-Dependency Canvas Core</h3>
         </div>
-        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+        <p class="body-sm" style="font-size: 12px; line-height: 1.45;">
           Single-file 60fps HTML5 rendering with keyboard/mouse inputs and scroll interception built in.
         </p>
       </div>
 
-      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-          <span style="font-size: 18px;">🔊</span>
+      <div class="feature-card" style="padding: 14px 16px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="font-size: 16px;">🔊</span>
           <h3 class="title-sm" style="font-size: 14px;">Procedural Web Audio API</h3>
         </div>
-        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+        <p class="body-sm" style="font-size: 12px; line-height: 1.45;">
           Real-time Web Audio tones for hits, jumps, and score chimes without external sound files.
         </p>
       </div>
 
-      <div class="feature-card" style="padding: 16px 18px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-          <span style="font-size: 18px;">✨</span>
+      <div class="feature-card" style="padding: 14px 16px; background-color: var(--color-canvas); border-color: var(--color-hairline);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="font-size: 16px;">✨</span>
           <h3 class="title-sm" style="font-size: 14px;">AST Self-Healing Engine</h3>
         </div>
-        <p class="body-sm" style="font-size: 12px; line-height: 1.5;">
+        <p class="body-sm" style="font-size: 12px; line-height: 1.45;">
           Automatic HTML validation and runnable reference fallbacks guarantee working games every time.
         </p>
       </div>
@@ -377,19 +414,41 @@
   <div class="hero-product-card" style="width: 100%; max-width: 960px; height: 85vh; display: flex; flex-direction: column; background: #0a0a0a;">
     <div class="viewport-toolbar" style="border-top-left-radius: var(--radius-xl); border-top-right-radius: var(--radius-xl);">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-success);"></span>
+        <span id="modal-status-dot" class="viewport-status-dot"></span>
         <span id="modal-game-title" style="font-weight: 600; color: #ffffff;">Play Game</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button id="fullscreen-btn" class="btn-icon-circular" style="background: #222; border-color: #333; color: #fff; width: 30px; height: 30px; font-size: 12px;" title="Fullscreen">
+      <div class="viewport-controls">
+        <button id="modal-pause-btn" type="button" class="vp-ctrl-btn" title="Pause / Resume Game">
+          ⏸ Pause
+        </button>
+        <button id="modal-restart-btn" type="button" class="vp-ctrl-btn" title="Restart Game">
+          🔄 Restart
+        </button>
+        <button id="fullscreen-btn" type="button" class="vp-ctrl-btn" title="Fullscreen">
           ⛶
         </button>
-        <button id="modal-close" class="btn-icon-circular" style="background: #222; border-color: #333; color: #fff; width: 30px; height: 30px; font-size: 12px;" title="Close">
-          ✕
+        <button id="modal-close" type="button" class="vp-ctrl-btn is-danger" title="Exit Game">
+          ⏹ Exit
         </button>
       </div>
     </div>
-    <iframe id="game-frame" class="viewport-frame" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
+    <div class="viewport-frame-wrap">
+      <iframe id="game-frame" class="viewport-frame" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
+      <div id="modal-pause-overlay" class="vp-overlay" tabindex="-1">
+        <div class="badge-pill status-warn" style="font-size: 13px; padding: 5px 14px;">⏸ Game Paused</div>
+        <div class="vp-overlay-actions">
+          <button id="modal-overlay-resume-btn" type="button" class="btn-primary" style="height: 36px; font-size: 13px;">
+            ▶ Resume Game
+          </button>
+          <button id="modal-overlay-restart-btn" type="button" class="vp-ctrl-btn" style="height: 36px; padding: 0 14px; font-size: 13px;">
+            🔄 Restart
+          </button>
+          <button id="modal-overlay-exit-btn" type="button" class="vp-ctrl-btn is-danger" style="height: 36px; padding: 0 14px; font-size: 13px;">
+            ⏹ Exit
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
