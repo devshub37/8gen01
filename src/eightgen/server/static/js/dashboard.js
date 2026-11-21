@@ -9,11 +9,14 @@ let modalController = null;
 const generatedHtmlCache = {};
 const VERCEL_CACHE_KEY = "eightgen_vercel_games_v1";
 const THEME_KEY = "eightgen_theme_v1";
-const THEME_ORDER = ["light", "dark", "gaming"];
+const THEME_KEY_V2 = "eightgen_theme_v2";
+const THEME_ORDER = ["light", "dark", "gaming", "retro", "terminal"];
 const THEME_LABELS = {
   light: "☀️ Light",
   dark: "🌙 Dark",
   gaming: "🎮 Gaming",
+  retro: "🌇 Retro",
+  terminal: "📟 Terminal",
 };
 
 function setSnapCooldown(ms = 750) {
@@ -81,13 +84,26 @@ function applyTheme(themeName) {
   document.documentElement.setAttribute("data-theme", resolved);
   try {
     localStorage.setItem(THEME_KEY, resolved);
+    localStorage.setItem(THEME_KEY_V2, resolved);
   } catch (e) {}
 
   const btn = document.getElementById("theme-toggle-btn");
-  if (btn) {
+  const labelEl = document.getElementById("palette-active-label");
+  if (labelEl) {
+    labelEl.textContent = THEME_LABELS[resolved];
+  } else if (btn) {
     btn.textContent = THEME_LABELS[resolved];
+  }
+  if (btn) {
     btn.setAttribute("data-theme-mode", resolved);
   }
+
+  // Update active state in palette dropdown options
+  document.querySelectorAll(".palette-option").forEach((opt) => {
+    const isCurrent = opt.getAttribute("data-theme-val") === resolved;
+    opt.classList.toggle("active", isCurrent);
+    opt.setAttribute("aria-checked", isCurrent ? "true" : "false");
+  });
 }
 
 function setupThemeSwitcher() {
@@ -95,12 +111,58 @@ function setupThemeSwitcher() {
   applyTheme(current);
 
   const btn = document.getElementById("theme-toggle-btn");
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    const active = document.documentElement.getAttribute("data-theme") || "light";
-    const idx = THEME_ORDER.indexOf(active);
-    const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
-    applyTheme(next);
+  const dock = document.getElementById("palette-dock");
+
+  if (btn && dock) {
+    btn.addEventListener("click", (e) => {
+      // If clicking directly on the caret or right half, toggle dropdown
+      if (e.target && e.target.classList.contains("palette-caret")) {
+        e.stopPropagation();
+        dock.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", dock.classList.contains("is-open") ? "true" : "false");
+        return;
+      }
+      const active = document.documentElement.getAttribute("data-theme") || "light";
+      const idx = THEME_ORDER.indexOf(active);
+      const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
+      applyTheme(next);
+    });
+
+    btn.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      dock.classList.toggle("is-open");
+      btn.setAttribute("aria-expanded", dock.classList.contains("is-open") ? "true" : "false");
+    });
+  } else if (btn) {
+    btn.addEventListener("click", () => {
+      const active = document.documentElement.getAttribute("data-theme") || "light";
+      const idx = THEME_ORDER.indexOf(active);
+      const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
+      applyTheme(next);
+    });
+  }
+
+  // Handle palette option clicks
+  document.querySelectorAll(".palette-option").forEach((opt) => {
+    opt.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const targetTheme = opt.getAttribute("data-theme-val");
+      if (targetTheme) {
+        applyTheme(targetTheme);
+      }
+      if (dock) {
+        dock.classList.remove("is-open");
+        btn && btn.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", (e) => {
+    if (dock && !dock.contains(e.target)) {
+      dock.classList.remove("is-open");
+      btn && btn.setAttribute("aria-expanded", "false");
+    }
   });
 }
 

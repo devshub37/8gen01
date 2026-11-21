@@ -12,8 +12,9 @@
   <script>
     (function () {
       try {
-        var saved = localStorage.getItem("eightgen_theme_v1");
-        if (saved === "light" || saved === "dark" || saved === "gaming") {
+        var themes = ["light", "dark", "gaming", "retro", "terminal"];
+        var saved = localStorage.getItem("eightgen_theme_v2") || localStorage.getItem("eightgen_theme_v1");
+        if (themes.indexOf(saved) !== -1) {
           document.documentElement.setAttribute("data-theme", saved);
         } else {
           document.documentElement.setAttribute("data-theme", "light");
@@ -50,15 +51,73 @@
           <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--color-success); margin-right: 4px;"></span>
           <span id="active-model-nav">{{ model_name }}</span>
         </div>
-        <button
-          id="theme-toggle-btn"
-          type="button"
-          class="btn-secondary theme-switch-btn"
-          title="Switch UI theme (Light / Dark / Gaming)"
-          aria-label="Switch theme"
-        >
-          ☀️ Light
-        </button>
+        <!-- Color Palette Component -->
+        <div class="palette-dock" id="palette-dock">
+          <button
+            id="theme-toggle-btn"
+            type="button"
+            class="btn-secondary palette-toggle-btn"
+            title="Switch UI theme (Light / Dark / Gaming / Retro / Terminal)"
+            aria-label="Switch theme"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span class="palette-swatch-indicator" id="palette-swatch-indicator"></span>
+            <span id="palette-active-label">☀️ Light</span>
+            <span class="palette-caret" aria-hidden="true">▾</span>
+          </button>
+
+          <div class="palette-dropdown" id="palette-dropdown" role="menu">
+            <div class="palette-dropdown-header">
+              <span class="title-sm" style="font-size: 13px; font-weight: 600;">Color Palette</span>
+              <span class="badge-pill" style="font-size: 10px; padding: 2px 8px;">5 Themes</span>
+            </div>
+            <div class="palette-list" role="radiogroup">
+              <button type="button" class="palette-option" data-theme-val="light" role="radio" aria-checked="false">
+                <span class="theme-mini-swatch light"></span>
+                <div class="theme-option-meta">
+                  <strong>Studio Clean Light</strong>
+                  <span>Minimalist Slate &amp; White</span>
+                </div>
+              </button>
+              <button type="button" class="palette-option" data-theme-val="dark" role="radio" aria-checked="false">
+                <span class="theme-mini-swatch dark"></span>
+                <div class="theme-option-meta">
+                  <strong>Obsidian Pro Dark</strong>
+                  <span>Deep Slate &amp; Sky Sapphire</span>
+                </div>
+              </button>
+              <button type="button" class="palette-option" data-theme-val="gaming" role="radio" aria-checked="false">
+                <span class="theme-mini-swatch gaming"></span>
+                <div class="theme-option-meta">
+                  <strong>Cyber Neon</strong>
+                  <span>Electric Cyan &amp; Hot Pink</span>
+                </div>
+              </button>
+              <button type="button" class="palette-option" data-theme-val="retro" role="radio" aria-checked="false">
+                <span class="theme-mini-swatch retro"></span>
+                <div class="theme-option-meta">
+                  <strong>Retro Sunset</strong>
+                  <span>Synthwave Amber &amp; Flamingo</span>
+                </div>
+              </button>
+              <button type="button" class="palette-option" data-theme-val="terminal" role="radio" aria-checked="false">
+                <span class="theme-mini-swatch terminal"></span>
+                <div class="theme-option-meta">
+                  <strong>Emerald Terminal</strong>
+                  <span>Matrix Phosphor Green</span>
+                </div>
+              </button>
+            </div>
+            <div class="palette-swatch-strip" id="palette-swatch-strip" title="Active Theme Swatches">
+              <div class="swatch-cell" style="background: var(--color-canvas)" title="Canvas"></div>
+              <div class="swatch-cell" style="background: var(--color-surface-card)" title="Card"></div>
+              <div class="swatch-cell" style="background: var(--color-primary)" title="Primary"></div>
+              <div class="swatch-cell" style="background: var(--color-brand-accent)" title="Accent"></div>
+              <div class="swatch-cell" style="background: var(--color-hairline)" title="Border"></div>
+            </div>
+          </div>
+        </div>
         <a href="/#workbench" class="btn-primary" style="height: 36px; padding: 8px 16px; font-size: 13px;">
           + New Game
         </a>

@@ -109,6 +109,7 @@ def test_theme_switcher_playback_controls_and_ctrl_shim(monkeypatch, tmp_path):
     home = client.get("/")
     assert home.status_code == 200
     assert 'id="theme-toggle-btn"' in home.text
+    assert 'id="palette-dock"' in home.text
     for btn_id in (
         "wb-pause-btn",
         "wb-restart-btn",
@@ -121,7 +122,7 @@ def test_theme_switcher_playback_controls_and_ctrl_shim(monkeypatch, tmp_path):
 
     css = client.get("/static/css/design-system.css")
     assert css.status_code == 200
-    for theme_name in ("light", "dark", "gaming"):
+    for theme_name in ("light", "dark", "gaming", "retro", "terminal"):
         assert f'data-theme="{theme_name}"' in css.text
 
     # Raw archetype vs ?ctrl=1 embedded shim
