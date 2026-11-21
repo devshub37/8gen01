@@ -6,7 +6,7 @@
   <title>{% block title %}8Gen — Autonomous Instant Game Studio{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/design-system.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <script>
@@ -69,43 +69,43 @@
 
           <div class="palette-dropdown" id="palette-dropdown" role="menu">
             <div class="palette-dropdown-header">
-              <span class="title-sm" style="font-size: 13px; font-weight: 600;">Color Palette</span>
-              <span class="badge-pill" style="font-size: 10px; padding: 2px 8px;">5 Themes</span>
+              <span class="title-sm" style="font-size: 13px; font-weight: 600;">PlayStation Theme Canvas</span>
+              <span class="badge-pill" style="font-size: 10px; padding: 2px 8px;">5 Modes</span>
             </div>
             <div class="palette-list" role="radiogroup">
               <button type="button" class="palette-option" data-theme-val="light" role="radio" aria-checked="false">
                 <span class="theme-mini-swatch light"></span>
                 <div class="theme-option-meta">
-                  <strong>Studio Clean Light</strong>
-                  <span>Minimalist Slate &amp; White</span>
+                  <strong>PlayStation Light Canvas</strong>
+                  <span>Clean White &amp; PlayStation Blue</span>
                 </div>
               </button>
               <button type="button" class="palette-option" data-theme-val="dark" role="radio" aria-checked="false">
                 <span class="theme-mini-swatch dark"></span>
                 <div class="theme-option-meta">
-                  <strong>Obsidian Pro Dark</strong>
-                  <span>Deep Slate &amp; Sky Sapphire</span>
+                  <strong>PlayStation Dark Canvas</strong>
+                  <span>Console Launch Trailer Black</span>
                 </div>
               </button>
               <button type="button" class="palette-option" data-theme-val="gaming" role="radio" aria-checked="false">
                 <span class="theme-mini-swatch gaming"></span>
                 <div class="theme-option-meta">
-                  <strong>Cyber Neon</strong>
-                  <span>Electric Cyan &amp; Hot Pink</span>
+                  <strong>PlayStation / Marathon Neon</strong>
+                  <span>PlayStation Blue &amp; Marathon Yellow</span>
                 </div>
               </button>
               <button type="button" class="palette-option" data-theme-val="retro" role="radio" aria-checked="false">
                 <span class="theme-mini-swatch retro"></span>
                 <div class="theme-option-meta">
-                  <strong>Retro Sunset</strong>
-                  <span>Synthwave Amber &amp; Flamingo</span>
+                  <strong>PlayStation Classic 1994</strong>
+                  <span>PS1 Console Grey &amp; Gold</span>
                 </div>
               </button>
               <button type="button" class="palette-option" data-theme-val="terminal" role="radio" aria-checked="false">
                 <span class="theme-mini-swatch terminal"></span>
                 <div class="theme-option-meta">
-                  <strong>Emerald Terminal</strong>
-                  <span>Matrix Phosphor Green</span>
+                  <strong>PlayStation DevKit CRT</strong>
+                  <span>Matrix DevKit Emerald Green</span>
                 </div>
               </button>
             </div>
@@ -118,7 +118,7 @@
             </div>
           </div>
         </div>
-        <a href="/#workbench" class="btn-primary" style="height: 36px; padding: 8px 16px; font-size: 13px;">
+        <a href="/#workbench" class="btn-primary" style="height: 38px; padding: 0 20px; font-size: 13px;">
           + New Game
         </a>
       </div>
@@ -128,20 +128,20 @@
   <!-- Page Content -->
   {% block content %}{% endblock %}
 
-  <!-- Specification-Compliant Universal SaaS Footer (Surface-Dark #101010) -->
+  <!-- PlayStation Design Architecture Universal Footer (PlayStation Blue #0070d1) -->
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
         <div>
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-            <div class="nav-logo-mark" style="background: #ffffff; color: #111111;">8</div>
-            <strong style="color: #ffffff; font-size: 16px;">8Gen Autonomous Game Studio</strong>
+            <div class="nav-logo-mark" style="background: #ffffff; color: #0070d1; font-weight: 800;">8</div>
+            <strong style="color: #ffffff; font-size: 17px; font-weight: 600; letter-spacing: 0.2px;">8Gen Autonomous Game Studio</strong>
           </div>
-          <p style="font-size: 14px; line-height: 1.6; max-width: 380px; margin-bottom: 16px;">
-            Engineered local-first AI game synthesizer. Generates single-file HTML5 games with zero external dependencies, 60fps canvas physics, Web Audio synthesizer, and particle effects.
+          <p style="font-size: 14px; line-height: 1.6; max-width: 380px; margin-bottom: 16px; color: rgba(255, 255, 255, 0.85);">
+            Engineered local-first AI game synthesizer built on the PlayStation 3-surface chapter architecture. Generates single-file HTML5 games with zero external dependencies.
           </p>
-          <div class="badge-pill" style="background: #1a1a1a; color: #a1a1aa; border-color: #2a2a2a;">
-            Release: alpha • Universal SaaS Spec
+          <div class="badge-pill" style="background: rgba(0, 0, 0, 0.25); color: #ffffff; border-color: rgba(255, 255, 255, 0.3);">
+            PlayStation Design Specification • v2.0
           </div>
         </div>
 
@@ -182,7 +182,7 @@
       <div class="footer-bottom">
         <div>© 2026 8Gen Studio. All games run 100% locally in your browser.</div>
         <div style="display: flex; gap: 16px; align-items: center;">
-          <span style="color: #34d399;">● Local Server Online</span>
+          <span style="color: #ffffff;">● Local Server Online</span>
           <span>Port 8000</span>
         </div>
       </div>

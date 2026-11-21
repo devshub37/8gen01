@@ -2,13 +2,14 @@
 
 {% block content %}
 <!-- 1. Page 1: Studio Workbench (Hero + Control Console + Live Viewport in One Screen) -->
-<section id="workbench" class="page-section hero-band" data-ws-enabled="{{ 'false' if is_vercel else 'true' }}">
+<section id="workbench" class="page-section hero-band ps-band-dark" data-ws-enabled="{{ 'false' if is_vercel else 'true' }}">
   <div class="container">
     <div class="hero-compact-header">
       <div class="hero-compact-copy">
         <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;">
-          <span class="badge-pill">v0.1.0 Alpha</span>
+          <span class="badge-pill">PlayStation Design Spec</span>
           <span class="badge-pill">Universal SaaS Design</span>
+          <span class="badge-pill" style="color: #0070d1; font-weight: 600;">PlayStation Blue #0070d1</span>
           <span class="badge-pill status-live">● Zero Cloud Lock-In</span>
         </div>
 
@@ -214,7 +215,7 @@
 </section>
 
 <!-- 2. Page 2: Guaranteed Playable Archetypes + Built-in Engine Architecture -->
-<section id="archetypes" class="page-section page-section-centered surface-soft">
+<section id="archetypes" class="page-section page-section-centered surface-soft ps-band-light">
   <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
       <div>
@@ -344,49 +345,55 @@
   </div>
 </section>
 
-<!-- 3. Page 3: AI Asset & Sprite Generator -->
-<section id="assets" class="page-section page-section-centered">
+<!-- 3. Page 3: AI Asset & Sprite Generator (PlayStation Plus Chapter) -->
+<section id="assets" class="page-section page-section-centered ps-band-dark-elevated">
   <div class="container">
-    <div style="margin-bottom: 32px; max-width: 640px;">
-      <div class="badge-pill" style="margin-bottom: 12px;">Image Generation</div>
-      <h2 class="display-sm" style="margin-bottom: 10px;">Autonomous AI Asset Studio</h2>
+    <div style="margin-bottom: 24px; max-width: 640px;">
+      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+        <span class="badge-pill" style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border-color: rgba(245, 166, 35, 0.4);">★ PS Plus Tier Studio</span>
+        <span class="badge-pill">Autonomous Asset Synthesis</span>
+      </div>
+      <h2 class="display-sm" style="margin-bottom: 8px;">Autonomous AI Asset Studio</h2>
       <p class="body-sm">
         Synthesize pixel art sprites, retro character icons, and background scenes using Google Imagen 3 or local Gemini Web-to-API.
       </p>
     </div>
 
-    <div class="product-mockup-card" style="padding: 32px;">
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
-        <input
-          type="text"
-          id="image-prompt-input"
-          class="text-input"
-          style="flex: 1; min-width: 280px;"
-          placeholder="e.g. Glowing neon spaceship fighter sprite, isolated on black background..."
-        />
-        <select id="image-style-select" class="select-input">
-          <option value="pixel-art">16-Bit Pixel Art</option>
-          <option value="retro-arcade">Retro Arcade Graphic</option>
-          <option value="scifi-background">Game Background Scene</option>
-        </select>
-        <button id="generate-image-btn" class="btn-primary" style="white-space: nowrap;">
-          🎨 Synthesize Asset
-        </button>
-      </div>
+    <div class="product-mockup-card" style="padding: 0; overflow: hidden; background: #181818; border-color: rgba(229, 229, 229, 0.15);">
+      <div class="ps-plus-accent-bar"></div>
+      <div style="padding: 24px 28px;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+          <input
+            type="text"
+            id="image-prompt-input"
+            class="text-input"
+            style="flex: 1; min-width: 280px; height: 38px;"
+            placeholder="e.g. Glowing neon spaceship fighter sprite, isolated on black background..."
+          />
+          <select id="image-style-select" class="select-input" style="height: 38px;">
+            <option value="pixel-art">16-Bit Pixel Art</option>
+            <option value="retro-arcade">Retro Arcade Graphic</option>
+            <option value="scifi-background">Game Background Scene</option>
+          </select>
+          <button id="generate-image-btn" class="btn-primary" style="white-space: nowrap; height: 38px;">
+            🎨 Synthesize Asset
+          </button>
+        </div>
 
-      <!-- Result Box -->
-      <div id="image-result-box" style="display: none; align-items: center; gap: 24px; padding: 20px; background-color: var(--color-surface-soft); border-radius: var(--radius-lg); border: 1px solid var(--color-hairline);">
-        <img id="image-result-thumb" src="" alt="Generated Asset" style="width: 110px; height: 110px; object-fit: contain; background: #000000; border-radius: var(--radius-md); border: 1px solid var(--color-hairline);" />
-        <div style="flex: 1;">
-          <h4 id="image-result-title" class="title-sm" style="margin-bottom: 4px;">Asset Synthesized</h4>
-          <p id="image-result-desc" class="body-sm" style="margin-bottom: 12px;"></p>
-          <div style="display: flex; gap: 10px;">
-            <button id="copy-data-url-btn" class="btn-secondary" style="height: 36px; padding: 0 14px; font-size: 13px;">
-              📋 Copy Data URL
-            </button>
-            <a id="download-asset-link" href="" download class="btn-primary" style="height: 36px; padding: 0 14px; font-size: 13px;">
-              ⬇ Download PNG
-            </a>
+        <!-- Result Box -->
+        <div id="image-result-box" style="display: none; align-items: center; gap: 24px; padding: 16px; background-color: #121314; border-radius: var(--radius-md); border: 1px solid rgba(229, 229, 229, 0.15);">
+          <img id="image-result-thumb" src="" alt="Generated Asset" style="width: 96px; height: 96px; object-fit: contain; background: #000000; border-radius: var(--radius-sm); border: 1px solid rgba(229, 229, 229, 0.2);" />
+          <div style="flex: 1;">
+            <h4 id="image-result-title" class="title-sm" style="margin-bottom: 4px; color: #ffffff;">Asset Synthesized</h4>
+            <p id="image-result-desc" class="body-sm" style="margin-bottom: 12px; color: rgba(255, 255, 255, 0.7);"></p>
+            <div style="display: flex; gap: 10px;">
+              <button id="copy-data-url-btn" class="btn-secondary" style="height: 34px; padding: 0 14px; font-size: 13px;">
+                📋 Copy Data URL
+              </button>
+              <a id="download-asset-link" href="" download class="btn-primary" style="height: 34px; padding: 0 14px; font-size: 13px;">
+                ⬇ Download PNG
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -395,7 +402,7 @@
 </section>
 
 <!-- 4. Page 4: Local Game Library & Storage -->
-<section id="library" class="page-section surface-soft">
+<section id="library" class="page-section surface-soft ps-band-light">
   <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; flex-wrap: wrap; gap: 16px;">
       <div>

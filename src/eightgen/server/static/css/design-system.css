@@ -1,40 +1,42 @@
 /**
- * Universal SaaS Design System (alpha)
- * Specification-compliant design tokens, typography, surfaces, and components.
+ * PlayStation 3-Surface Design System (alpha)
+ * Specification-compliant design tokens, signature weight 300 typography, surfaces, and components.
  */
 
 :root,
 html[data-theme="light"] {
-  /* Studio Clean Light Tokens */
-  --color-primary: #0f172a;
-  --color-primary-hover: #1e293b;
-  --color-primary-active: #334155;
+  /* PlayStation Clean Light Canvas Tokens */
+  --color-primary: #0070d1;
+  --color-primary-hover: #0064b7;
+  --color-primary-active: #004d8d;
   --color-primary-disabled: #cbd5e1;
-  --color-ink: #0f172a;
-  --color-body: #334155;
-  --color-muted: #64748b;
-  --color-muted-soft: #94a3b8;
-  --color-hairline: #e2e8f0;
-  --color-hairline-soft: #f1f5f9;
+  --color-commerce: #d53b00;
+  --color-commerce-pressed: #aa2f00;
+  --color-ink: #000000;
+  --color-body: rgba(0, 0, 0, 0.7);
+  --color-muted: #6b6b6b;
+  --color-muted-soft: #9e9e9e;
+  --color-hairline: #e5e5e5;
+  --color-hairline-soft: #f3f3f3;
   --color-canvas: #ffffff;
-  --color-surface-soft: #f8fafc;
-  --color-surface-card: #f1f5f9;
-  --color-surface-strong: #e2e8f0;
-  --color-surface-dark: #0f172a;
-  --color-surface-dark-elevated: #1e293b;
+  --color-surface-soft: #f3f3f3;
+  --color-surface-card: #f5f7fa;
+  --color-surface-strong: #e5e5e5;
+  --color-surface-dark: #000000;
+  --color-surface-dark-elevated: #121314;
   --color-on-primary: #ffffff;
   --color-on-dark: #ffffff;
-  --color-on-dark-soft: #94a3b8;
-  --color-brand-accent: #2563eb;
-  --color-brand-accent-soft: rgba(37, 99, 235, 0.12);
+  --color-on-dark-soft: #cccccc;
+  --color-brand-accent: #0070d1;
+  --color-brand-accent-soft: rgba(0, 112, 209, 0.12);
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  --color-badge-orange: #fb923c;
+  --color-badge-orange: #d53b00;
   --color-badge-pink: #ec4899;
   --color-badge-violet: #8b5cf6;
   --color-badge-emerald: #10b981;
-  --color-nav-indicator: #2563eb;
+  --color-nav-indicator: #0070d1;
   --color-card-hover: #f1f5f9;
   --color-input-bg: #ffffff;
   --color-status-live-bg: #ecfdf5;
@@ -43,22 +45,22 @@ html[data-theme="light"] {
   --color-status-warn-bg: #fffbeb;
   --color-status-warn-fg: #b45309;
   --color-status-warn-border: #fde68a;
-  --color-footer-border: #1e293b;
-  --color-page-backdrop: #eef1f5;
-  --color-nav-bg: rgba(255, 255, 255, 0.92);
-  --color-viewport-border: #cbd5e1;
+  --color-footer-border: rgba(255, 255, 255, 0.2);
+  --color-page-backdrop: #f5f7fa;
+  --color-nav-bg: rgba(255, 255, 255, 0.94);
+  --color-viewport-border: #e0e0e0;
 
-  /* Typography */
-  --font-family-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-family-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography - Signature PlayStation SST / Roboto / Inter */
+  --font-family-display: "PlayStation SST", "Roboto", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-body: "PlayStation SST", "Roboto", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Radius */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
+  /* Radius - 8px Cards, 4px Inputs, 9999px Pills */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
   --radius-pill: 9999px;
   --radius-full: 9999px;
 
@@ -72,52 +74,54 @@ html[data-theme="light"] {
   --space-xxl: 48px;
   --space-section: 96px;
 
-  /* Restrained Elevation */
-  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.05);
-  --shadow-elevated: 0 4px 16px rgba(15, 23, 42, 0.08);
+  /* PlayStation Elevation: Flat resting state, faint outline */
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 html[data-theme="dark"] {
-  /* Obsidian Pro Dark Tokens */
-  --color-primary: #f8fafc;
-  --color-primary-hover: #ffffff;
-  --color-primary-active: #e2e8f0;
-  --color-primary-disabled: #334155;
-  --color-ink: #f8fafc;
-  --color-body: #cbd5e1;
-  --color-muted: #94a3b8;
-  --color-muted-soft: #64748b;
-  --color-hairline: #212836;
-  --color-hairline-soft: #161b24;
-  --color-canvas: #0d1117;
-  --color-surface-soft: #121721;
-  --color-surface-card: #18202e;
-  --color-surface-strong: #232d40;
-  --color-surface-dark: #06070a;
-  --color-surface-dark-elevated: #11151d;
-  --color-on-primary: #090d16;
-  --color-on-dark: #f8fafc;
-  --color-on-dark-soft: #94a3b8;
-  --color-brand-accent: #38bdf8;
-  --color-brand-accent-soft: rgba(56, 189, 248, 0.15);
+  /* PlayStation Console Dark Canvas Tokens */
+  --color-primary: #0070d1;
+  --color-primary-hover: #0064b7;
+  --color-primary-active: #004d8d;
+  --color-primary-disabled: #2d3748;
+  --color-commerce: #d53b00;
+  --color-commerce-pressed: #aa2f00;
+  --color-ink: #ffffff;
+  --color-body: rgba(255, 255, 255, 0.7);
+  --color-muted: rgba(229, 229, 229, 0.55);
+  --color-muted-soft: rgba(229, 229, 229, 0.35);
+  --color-hairline: rgba(229, 229, 229, 0.2);
+  --color-hairline-soft: rgba(229, 229, 229, 0.1);
+  --color-canvas: #000000;
+  --color-surface-soft: #121314;
+  --color-surface-card: #181818;
+  --color-surface-strong: #222222;
+  --color-surface-dark: #000000;
+  --color-surface-dark-elevated: #121314;
+  --color-on-primary: #ffffff;
+  --color-on-dark: #ffffff;
+  --color-on-dark-soft: #cccccc;
+  --color-brand-accent: #0070d1;
+  --color-brand-accent-soft: rgba(0, 112, 209, 0.2);
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-error: #f87171;
-  --color-nav-indicator: #38bdf8;
-  --color-card-hover: #1e2638;
-  --color-input-bg: #0f141f;
+  --color-nav-indicator: #0070d1;
+  --color-card-hover: #222222;
+  --color-input-bg: #121314;
   --color-status-live-bg: rgba(52, 211, 153, 0.14);
   --color-status-live-fg: #34d399;
   --color-status-live-border: rgba(52, 211, 153, 0.35);
   --color-status-warn-bg: rgba(251, 191, 36, 0.14);
   --color-status-warn-fg: #fbbf24;
   --color-status-warn-border: rgba(251, 191, 36, 0.35);
-  --color-footer-border: #1e2638;
-  --color-page-backdrop: #07080a;
-  --color-nav-bg: rgba(13, 17, 23, 0.88);
-  --color-viewport-border: #212836;
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
-  --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.65);
+  --color-footer-border: rgba(255, 255, 255, 0.2);
+  --color-page-backdrop: #0a0a0c;
+  --color-nav-bg: rgba(0, 0, 0, 0.92);
+  --color-viewport-border: rgba(229, 229, 229, 0.2);
+  --shadow-subtle: none;
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.75);
 }
 
 html[data-theme="gaming"] {
@@ -276,49 +280,68 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Typography Utility Classes */
+/* Typography Utility Classes - PlayStation SST Signature Weight 300 Display Scale */
 .display-xl {
   font-family: var(--font-family-display);
-  font-size: 64px;
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -2px;
+  font-size: 54px;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: -0.1px;
   color: var(--color-ink);
 }
 
 .display-lg {
   font-family: var(--font-family-display);
-  font-size: 48px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -1.5px;
+  font-size: 44px;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
   color: var(--color-ink);
 }
 
 .display-md {
   font-family: var(--font-family-display);
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -1px;
+  font-size: 35px;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0;
   color: var(--color-ink);
 }
 
-.display-sm {
+.display-sm,
+.heading-xl {
   font-family: var(--font-family-display);
   font-size: 28px;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
+  color: var(--color-ink);
+}
+
+.heading-lg {
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
+  color: var(--color-ink);
+}
+
+.heading-md {
+  font-family: var(--font-family-display);
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.5px;
+  line-height: 1;
+  letter-spacing: 0;
   color: var(--color-ink);
 }
 
 .title-lg {
   font-family: var(--font-family-display);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 300;
   line-height: 1.3;
-  letter-spacing: -0.3px;
+  letter-spacing: 0.1px;
   color: var(--color-ink);
 }
 
@@ -326,16 +349,16 @@ body {
   font-family: var(--font-family-display);
   font-size: 18px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   letter-spacing: 0;
   color: var(--color-ink);
 }
 
 .title-sm {
   font-family: var(--font-family-display);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   letter-spacing: 0;
   color: var(--color-ink);
 }
@@ -345,7 +368,17 @@ body {
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
+  letter-spacing: 0.1px;
   color: var(--color-body);
+}
+
+.body-strong {
+  font-family: var(--font-family-body);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.4px;
+  color: var(--color-ink);
 }
 
 .body-sm {
@@ -615,37 +648,39 @@ html[data-theme="dark"] .nav-logo-mark {
   gap: var(--space-sm);
 }
 
-/* Buttons */
+/* Buttons - PlayStation Fully Rounded Pills */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-xs);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-active));
+  background: var(--color-primary);
   color: var(--color-on-primary);
   font-family: var(--font-family-body);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.45px;
   line-height: 1;
-  border-radius: var(--radius-md);
-  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  padding: 10px 22px;
   height: 38px;
   border: 1px solid var(--color-primary);
   cursor: pointer;
   text-decoration: none;
-  box-shadow: var(--shadow-subtle);
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-  filter: brightness(1.06);
 }
 
 .btn-primary:active:not(:disabled) {
+  background: var(--color-primary-active);
+  border-color: var(--color-primary-active);
   transform: translateY(0);
-  box-shadow: var(--shadow-subtle);
 }
 
 .btn-primary:disabled {
@@ -657,31 +692,62 @@ html[data-theme="dark"] .nav-logo-mark {
   box-shadow: none;
 }
 
+.btn-commerce {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background-color: var(--color-commerce);
+  color: #ffffff;
+  font-family: var(--font-family-body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+  line-height: 1;
+  border-radius: var(--radius-pill);
+  padding: 10px 22px;
+  height: 38px;
+  border: 1px solid var(--color-commerce);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: none;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
+}
+
+.btn-commerce:hover:not(:disabled) {
+  background-color: var(--color-commerce-pressed);
+  border-color: var(--color-commerce-pressed);
+  transform: translateY(-1px);
+}
+
+.btn-commerce:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-xs);
-  background-color: var(--color-canvas);
+  background-color: transparent;
   color: var(--color-ink);
   font-family: var(--font-family-body);
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  padding: 10px 18px;
   height: 38px;
   border: 1px solid var(--color-hairline);
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--color-surface-soft);
-  border-color: var(--color-muted-soft);
+  border-color: var(--color-muted);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-subtle);
 }
 
 .btn-secondary:active:not(:disabled) {
@@ -704,7 +770,7 @@ html[data-theme="dark"] .nav-logo-mark {
 
 .btn-icon-circular:hover {
   background-color: var(--color-surface-soft);
-  border-color: var(--color-brand-accent);
+  border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
@@ -722,7 +788,7 @@ html[data-theme="dark"] .nav-logo-mark {
 }
 
 .btn-text-link:hover {
-  color: var(--color-brand-accent);
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
@@ -758,14 +824,14 @@ html[data-theme="dark"] .nav-logo-mark {
   background-color: var(--color-canvas);
   color: var(--color-ink);
   font-weight: 600;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: none;
 }
 
-/* Cards */
+/* Cards - PlayStation Crisp 8px Radius, Zero Resting Shadows */
 .feature-card {
   background-color: var(--color-surface-card);
   color: var(--color-ink);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-xl);
   border: 1px solid var(--color-hairline);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
@@ -773,47 +839,46 @@ html[data-theme="dark"] .nav-logo-mark {
 
 .feature-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-brand-accent);
+  border-color: var(--color-primary);
   background-color: var(--color-card-hover);
 }
 
 .product-mockup-card {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-hairline);
-  box-shadow: var(--shadow-subtle);
+  box-shadow: none;
   overflow: hidden;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 
 .product-mockup-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-elevated);
-  border-color: var(--color-brand-accent);
+  border-color: var(--color-primary);
 }
 
 .hero-product-card {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-viewport-border);
-  box-shadow: var(--shadow-elevated);
+  box-shadow: none;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .testimonial-card {
   background-color: var(--color-surface-card);
   color: var(--color-ink);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-lg);
 }
 
 .pricing-tier-card {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-xl);
   border: 1px solid var(--color-hairline);
   display: flex;
@@ -823,13 +888,13 @@ html[data-theme="dark"] .nav-logo-mark {
 .pricing-tier-card-featured {
   background-color: var(--color-surface-dark);
   color: var(--color-on-dark);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-xl);
   display: flex;
   flex-direction: column;
 }
 
-/* Forms */
+/* Forms - PlayStation 4px Input Radius */
 .text-input {
   width: 100%;
   height: 40px;
@@ -837,16 +902,15 @@ html[data-theme="dark"] .nav-logo-mark {
   color: var(--color-ink);
   font-family: var(--font-family-body);
   font-size: 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   border: 1px solid var(--color-hairline);
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .text-input:focus {
-  border-color: var(--color-brand-accent);
-  box-shadow: 0 0 0 3px var(--color-brand-accent-soft);
+  border-color: var(--color-primary);
 }
 
 .select-input {
@@ -855,17 +919,16 @@ html[data-theme="dark"] .nav-logo-mark {
   color: var(--color-ink);
   font-family: var(--font-family-body);
   font-size: 13px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 0 14px;
   border: 1px solid var(--color-hairline);
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .select-input:focus {
-  border-color: var(--color-brand-accent);
-  box-shadow: 0 0 0 3px var(--color-brand-accent-soft);
+  border-color: var(--color-primary);
 }
 
 /* Badges */
@@ -928,17 +991,18 @@ html[data-theme="dark"] .nav-logo-mark {
 .cta-band-light {
   background-color: var(--color-surface-card);
   color: var(--color-ink);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-xxl);
   text-align: center;
   border: 1px solid var(--color-hairline);
 }
 
-/* Footer */
+/* Footer - PlayStation Blue Full Bleed (#0070d1) */
 .footer {
-  background-color: var(--color-surface-dark);
-  color: var(--color-on-dark-soft);
+  background-color: #0070d1;
+  color: #ffffff;
   padding: 64px 0 40px;
+  border-top: none;
 }
 
 .footer-grid {
@@ -949,10 +1013,11 @@ html[data-theme="dark"] .nav-logo-mark {
 }
 
 .footer-col-title {
-  color: var(--color-on-dark);
+  color: #ffffff;
   font-weight: 600;
   font-size: 14px;
   margin-bottom: var(--space-md);
+  letter-spacing: 0.3px;
 }
 
 .footer-links {
@@ -963,23 +1028,24 @@ html[data-theme="dark"] .nav-logo-mark {
 }
 
 .footer-link {
-  color: var(--color-on-dark-soft);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-size: 14px;
   transition: color 0.15s ease;
 }
 
 .footer-link:hover {
-  color: var(--color-on-dark);
+  color: #ffffff;
 }
 
 .footer-bottom {
-  border-top: 1px solid var(--color-footer-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   padding-top: var(--space-lg);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Studio Workbench UI */
@@ -999,8 +1065,9 @@ html[data-theme="dark"] .nav-logo-mark {
 
 .hero-title-compact {
   font-size: clamp(24px, 2.5vw, 34px);
-  line-height: 1.12;
-  letter-spacing: -1px;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.2px;
   margin-bottom: 6px;
 }
 
@@ -1023,11 +1090,11 @@ html[data-theme="dark"] .nav-logo-mark {
   grid-template-columns: 420px 1fr;
   height: clamp(340px, calc(100vh - 275px), 560px);
   background-color: var(--color-canvas);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-viewport-border);
-  box-shadow: var(--shadow-elevated);
+  box-shadow: none;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .studio-sidebar {
@@ -1058,17 +1125,23 @@ html[data-theme="dark"] .nav-logo-mark {
 
 .chip.btn-secondary {
   height: auto;
-  padding: 8px 10px;
+  padding: 8px 12px;
   justify-content: flex-start;
   text-align: left;
   font-size: 12px;
-  font-weight: 500;
-  border-radius: var(--radius-md);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--color-hairline);
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  box-shadow: var(--shadow-subtle);
+  box-shadow: none;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chip.btn-secondary:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-primary);
+  background-color: var(--color-surface-soft);
 }
 
 .chip.btn-secondary:hover {
@@ -1399,15 +1472,15 @@ html[data-theme="terminal"] .viewport-toolbar {
 }
 
 .theme-mini-swatch.light {
-  background: linear-gradient(135deg, #ffffff 50%, #2563eb 50%);
+  background: linear-gradient(135deg, #ffffff 50%, #0070d1 50%);
 }
 
 .theme-mini-swatch.dark {
-  background: linear-gradient(135deg, #0d1117 50%, #38bdf8 50%);
+  background: linear-gradient(135deg, #000000 50%, #0070d1 50%);
 }
 
 .theme-mini-swatch.gaming {
-  background: linear-gradient(135deg, #0a0718 50%, #00f0ff 50%);
+  background: linear-gradient(135deg, #0a0718 50%, #deff20 50%);
 }
 
 .theme-mini-swatch.retro {
@@ -1416,6 +1489,100 @@ html[data-theme="terminal"] .viewport-toolbar {
 
 .theme-mini-swatch.terminal {
   background: linear-gradient(135deg, #051308 50%, #22c55e 50%);
+}
+
+/* PlayStation 3-Surface Alternating Chapters */
+.ps-band-dark {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.ps-band-dark .title-sm,
+.ps-band-dark .title-md,
+.ps-band-dark .display-xl,
+.ps-band-dark .display-lg,
+.ps-band-dark .display-md,
+.ps-band-dark .display-sm,
+.ps-band-dark .heading-xl,
+.ps-band-dark .heading-lg {
+  color: #ffffff;
+}
+
+.ps-band-dark .body-md,
+.ps-band-dark .body-sm {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ps-band-light {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.ps-band-light .title-sm,
+.ps-band-light .title-md,
+.ps-band-light .display-xl,
+.ps-band-light .display-lg,
+.ps-band-light .display-md,
+.ps-band-light .display-sm,
+.ps-band-light .heading-xl,
+.ps-band-light .heading-lg {
+  color: #000000;
+}
+
+.ps-band-light .body-md,
+.ps-band-light .body-sm {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.ps-band-dark-elevated {
+  background-color: #121314;
+  color: #ffffff;
+}
+
+.ps-band-dark-elevated .title-sm,
+.ps-band-dark-elevated .title-md,
+.ps-band-dark-elevated .display-xl,
+.ps-band-dark-elevated .display-lg,
+.ps-band-dark-elevated .display-md,
+.ps-band-dark-elevated .display-sm,
+.ps-band-dark-elevated .heading-xl,
+.ps-band-dark-elevated .heading-lg {
+  color: #ffffff;
+}
+
+.ps-band-dark-elevated .body-md,
+.ps-band-dark-elevated .body-sm {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Theme overrides for non-default canvas modes */
+html[data-theme="gaming"] .ps-band-dark,
+html[data-theme="gaming"] .ps-band-light,
+html[data-theme="gaming"] .ps-band-dark-elevated {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+html[data-theme="retro"] .ps-band-dark,
+html[data-theme="retro"] .ps-band-light,
+html[data-theme="retro"] .ps-band-dark-elevated {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+html[data-theme="terminal"] .ps-band-dark,
+html[data-theme="terminal"] .ps-band-light,
+html[data-theme="terminal"] .ps-band-dark-elevated {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* PlayStation Plus Tier Accent Bar */
+.ps-plus-accent-bar {
+  height: 4px;
+  background: linear-gradient(90deg, #ffce21, #f5a623, #ee8e00);
+  border-radius: 8px 8px 0 0;
+  width: 100%;
 }
 
 .theme-option-meta {
