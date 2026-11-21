@@ -164,6 +164,14 @@ function setupThemeSwitcher() {
       btn && btn.setAttribute("aria-expanded", "false");
     }
   });
+
+  // Close dropdown on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && dock && dock.classList.contains("is-open")) {
+      dock.classList.remove("is-open");
+      btn && btn.setAttribute("aria-expanded", "false");
+    }
+  });
 }
 
 function appendCtrlQuery(url) {
