@@ -1505,8 +1505,8 @@ html[data-theme="terminal"] .viewport-toolbar {
 }
 
 .ps-band-light {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: var(--color-surface-soft);
+  color: var(--color-ink);
 }
 
 .ps-band-light .title-sm,
@@ -1517,12 +1517,12 @@ html[data-theme="terminal"] .viewport-toolbar {
 .ps-band-light .display-sm,
 .ps-band-light .heading-xl,
 .ps-band-light .heading-lg {
-  color: #000000;
+  color: var(--color-ink);
 }
 
 .ps-band-light .body-md,
 .ps-band-light .body-sm {
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--color-body);
 }
 
 .ps-band-dark-elevated {
