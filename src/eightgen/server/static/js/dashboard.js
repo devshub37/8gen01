@@ -697,8 +697,7 @@ function setupGameReferenceSelector() {
   const hintEl = document.getElementById("reference-controls-hint");
   if (!refSelect) return;
 
-  const defaultHint =
-    "Selecting a game generates a simpler runnable version with basic controls & logic.";
+  const defaultHint = "";
 
   refSelect.addEventListener("change", () => {
     const refId = refSelect.value;
