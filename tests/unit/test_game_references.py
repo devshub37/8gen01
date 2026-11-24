@@ -53,8 +53,8 @@ def test_dashboard_replaces_category_with_game_reference_and_uses_page_sections(
         assert spec.label in html
 
     # Sticky main page sections match top nav links
-    assert html.count('class="page-section') == 4
-    for section_id in ("workbench", "archetypes", "assets", "library"):
+    assert html.count('class="page-section') == 2
+    for section_id in ("workbench", "library"):
         assert f'id="{section_id}" class="page-section' in html
 
 
