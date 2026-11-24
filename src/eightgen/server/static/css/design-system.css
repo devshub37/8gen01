@@ -1078,13 +1078,6 @@ html[data-theme="dark"] .nav-logo-mark {
   margin-bottom: 0;
 }
 
-.hero-gemini-card {
-  flex: 0 1 390px;
-  min-width: 280px;
-  padding: 10px 14px;
-  background-color: var(--color-surface-soft);
-}
-
 .studio-workbench {
   display: grid;
   grid-template-columns: 420px 1fr;
@@ -1640,9 +1633,6 @@ html[data-theme="terminal"] .ps-band-dark-elevated {
   }
   .page-section {
     min-height: auto;
-  }
-  .hero-gemini-card {
-    flex: 1 1 100%;
   }
   .studio-workbench {
     grid-template-columns: 1fr;

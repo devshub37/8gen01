@@ -783,7 +783,6 @@ function setupEventListeners() {
   const promptInput = document.getElementById("prompt-input");
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   const refreshGamesBtn = document.getElementById("refresh-games-btn");
-  const saveKeyBtn = document.getElementById("save-key-btn");
   const wbFullscreenBtn = document.getElementById("wb-fullscreen-btn");
 
   if (generateBtn) {
@@ -819,33 +818,6 @@ function setupEventListeners() {
 
   if (refreshGamesBtn) {
     refreshGamesBtn.addEventListener("click", fetchGames);
-  }
-
-  if (saveKeyBtn) {
-    saveKeyBtn.addEventListener("click", async () => {
-      const keyInput = document.getElementById("gemini-key-input");
-      const key = keyInput.value.trim();
-      if (!key) return;
-      saveKeyBtn.disabled = true;
-      saveKeyBtn.innerText = "Saving...";
-      try {
-        const res = await fetch("/api/settings/key", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: key, provider: "gemini" }),
-        });
-        if (res.ok) {
-          saveKeyBtn.innerText = "✔ Saved!";
-          setTimeout(() => { location.reload(); }, 600);
-        } else {
-          throw new Error("Save failed");
-        }
-      } catch (e) {
-        alert("Failed to save Gemini key.");
-        saveKeyBtn.disabled = false;
-        saveKeyBtn.innerText = "Save Key";
-      }
-    });
   }
 
   // Preset chips click: Fill prompt AND launch archetype immediately!

@@ -22,50 +22,6 @@
         </p>
       </div>
 
-      <!-- Compact Gemini Status / Key Setup Card -->
-      <div class="product-mockup-card hero-gemini-card">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-          <div style="width: 28px; height: 28px; border-radius: 7px; background-color: var(--color-primary); color: var(--color-on-primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">
-            ⚡
-          </div>
-          <div>
-            <div class="title-sm" style="font-size: 13px; line-height: 1.2;">
-              Google Gemini Flash API
-            </div>
-            <div class="body-sm" style="font-size: 12px;">
-              Free key at <a href="https://aistudio.google.com/" target="_blank" style="color: var(--color-ink); text-decoration: underline;">aistudio.google.com</a>
-            </div>
-          </div>
-        </div>
-
-        {% if is_vercel %}
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-          {% if has_key %}
-          <span class="badge-pill status-live">● Gemini API Configured</span>
-          {% else %}
-          <span class="badge-pill status-warn">⚠ Set GEMINI_API_KEY in Vercel Env</span>
-          {% endif %}
-          <div style="display: flex; gap: 8px;">
-            <a href="#archetypes" class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 12px;">Archetypes</a>
-            <a href="#library" class="btn-text-link" style="font-size: 12px;">Library →</a>
-          </div>
-        </div>
-        {% else %}
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <input
-            type="password"
-            id="gemini-key-input"
-            class="text-input"
-            style="height: 34px; font-size: 12px;"
-            placeholder="Paste Gemini API Key (AIzaSy...)"
-            value="{% if has_key %}••••••••••••••••{% endif %}"
-          />
-          <button id="save-key-btn" class="btn-primary" style="height: 34px; padding: 0 12px; font-size: 12px; flex-shrink: 0;">
-            {% if has_key %}Update{% else %}Save Key{% endif %}
-          </button>
-        </div>
-        {% endif %}
-      </div>
     </div>
 
     <!-- Live Studio Workbench -->
