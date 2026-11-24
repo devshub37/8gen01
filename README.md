@@ -2,7 +2,7 @@
 
 > **Autonomous AI Agent that crafts complete, playable HTML5 games locally in seconds using Ollama.**
 
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Local LLM](https://img.shields.io/badge/engine-Ollama-purple.svg)](https://ollama.com/)
 
@@ -72,7 +72,7 @@ flowchart TD
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- **Python 3.9+**
+- **Python 3.11+**
 - **[Ollama](https://ollama.com/)** running locally
 
 Ensure you have a code-capable model pulled in Ollama:
@@ -154,10 +154,19 @@ Open [http://localhost:8000](http://localhost:8000) to browse your gallery, play
 ## ⚙️ Configuration
 
 8Gen uses layered configuration with the following priority:
-**CLI Flags > Environment Variables > TOML Config File (`8gen.toml`) > Defaults**
+**CLI Flags > Environment Variables (`EIGHTGEN_*`) > TOML Config File (`8gen.toml`) > Bundled Defaults**
 
-You can configure settings via `.env` file or environment variables:
+All environment variables use the `EIGHTGEN_` prefix (legacy unprefixed names
+like `GEMINI_API_KEY` and `PROVIDER` are still honored). Configure settings via
+a `.env` file or environment variables:
+
 ```bash
+# Provider selection: "auto" (default) picks Gemini when a key is configured,
+# otherwise local Ollama. Set "gemini" or "ollama" to force one.
+EIGHTGEN_PROVIDER=auto
+EIGHTGEN_GEMINI_API_KEY=your-key-here        # legacy GEMINI_API_KEY also works
+EIGHTGEN_GEMINI_MODEL=gemini-3-flash-preview
+
 EIGHTGEN_OLLAMA_URL=http://localhost:11434
 EIGHTGEN_MODEL=huihui_ai/qwen2.5-coder-abliterate:7b
 EIGHTGEN_OUTPUT_DIR=./games
@@ -167,6 +176,15 @@ EIGHTGEN_SERVER_PORT=8000
 EIGHTGEN_AUTO_OPEN=true
 EIGHTGEN_TEMPERATURE=0.7
 EIGHTGEN_MAX_RETRIES=3
+
+# Server security (recommended for any non-local deployment)
+EIGHTGEN_API_TOKEN=change-me                 # enables login for dashboard + API
+EIGHTGEN_CORS_ORIGINS=https://example.com    # empty = same-origin only
+EIGHTGEN_RATE_LIMIT=30                       # mutating requests per client/minute (0 = off)
+
+# Generation quality gates
+EIGHTGEN_JS_SYNTAX_CHECK=1                   # node --check on generated scripts
+EIGHTGEN_SMOKE_TEST=0                        # 1 = headless-browser smoke test (needs playwright)
 ```
 
 View active settings anytime:
@@ -178,10 +196,14 @@ View active settings anytime:
 
 ## 🧪 Running Tests
 
-8Gen comes with an automated test suite covering unit tests, mocked agent pipelines, HTML extraction, validation checks, and Ollama integration tests.
+8Gen comes with an automated test suite covering unit tests, mocked agent pipelines, HTML extraction, and validation checks.
 
 ```bash
+# Unit tests (default; runs green with no external services)
 pytest tests/ -v
+
+# Ollama integration tests require a local Ollama daemon
+OLLAMA_INTEGRATION=1 pytest tests/ -v -m integration
 ```
 
 ---

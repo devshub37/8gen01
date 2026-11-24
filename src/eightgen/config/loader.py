@@ -1,14 +1,26 @@
 """Configuration loader and manager."""
 
+import os
 from pathlib import Path
 import tomllib
 from typing import Any, Dict
 from eightgen.config.settings import Settings
 
+# Bundled defaults ship with the package and sit at the bottom of the priority chain.
+BUNDLED_DEFAULT_CONFIG = Path(__file__).parent / "default.toml"
+
 DEFAULT_CONFIG_LOCATIONS = [
     Path("./8gen.toml"),
     Path.home() / ".config" / "eightgen" / "config.toml",
 ]
+
+# Legacy (unprefixed) environment variables that still override config file values.
+_LEGACY_ENV_ALIASES: Dict[str, tuple] = {
+    "provider": ("PROVIDER",),
+    "gemini_api_key": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "output_dir": ("OUTPUT_DIR",),
+    "db_path": ("DB_PATH",),
+}
 
 
 def load_toml_config(path: Path) -> Dict[str, Any]:
@@ -57,8 +69,20 @@ def load_toml_config(path: Path) -> Dict[str, Any]:
         return {}
 
 
+def _env_supplies(key: str) -> bool:
+    """True when an environment variable already provides this setting."""
+    if os.getenv(f"EIGHTGEN_{key.upper()}") is not None:
+        return True
+    for alias in _LEGACY_ENV_ALIASES.get(key, ()):
+        if os.getenv(alias):
+            return True
+    return False
+
+
 def get_settings(config_path: Path | None = None, **overrides: Any) -> Settings:
-    """Load settings with priority: overrides > config file > environment variables > defaults."""
+    """Load settings with priority: overrides > environment > config file > bundled defaults."""
+    defaults: Dict[str, Any] = load_toml_config(BUNDLED_DEFAULT_CONFIG)
+
     file_data: Dict[str, Any] = {}
     if config_path and Path(config_path).is_file():
         file_data = load_toml_config(Path(config_path))
@@ -70,7 +94,17 @@ def get_settings(config_path: Path | None = None, **overrides: Any) -> Settings:
 
     # Strip None overrides
     clean_overrides = {k: v for k, v in overrides.items() if v is not None}
-    merged_data = {**file_data, **clean_overrides}
+
+    merged_data = {**defaults, **file_data, **clean_overrides}
+
+    # Environment variables beat the config file; explicit overrides still win
+    # over everything (they are passed as init kwargs, which pydantic prefers).
+    file_level_keys = set(defaults) | set(file_data)
+    for key in file_level_keys:
+        if key in clean_overrides:
+            continue
+        if _env_supplies(key):
+            merged_data.pop(key, None)
 
     settings = Settings(**merged_data)
     settings.ensure_directories()

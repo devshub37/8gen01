@@ -11,7 +11,9 @@ from eightgen.llm.prompt_builder import PromptBuilder
 from eightgen.plugins.manager import get_plugin_manager
 from eightgen.utils.logger import get_logger
 
+import asyncio
 import inspect
+import os
 
 logger = get_logger("eightgen.generator")
 
@@ -129,6 +131,19 @@ class GameGenerator:
             # Validate HTML structure and requirements
             val_result: ValidationResult = GameValidator.validate(html_code)
             if val_result.is_valid:
+                # Optional headless smoke test: run the game once in a real
+                # browser when enabled (EIGHTGEN_SMOKE_TEST=1 / smoke_test=true).
+                smoke_enabled = self.settings.smoke_test or os.getenv(
+                    "EIGHTGEN_SMOKE_TEST", ""
+                ).strip().lower() in ("1", "true", "yes", "on")
+                if smoke_enabled:
+                    smoke_error = await asyncio.to_thread(GameValidator.smoke_test, html_code)
+                    if smoke_error:
+                        logger.warning(f"Smoke test failed (attempt {attempt}): {smoke_error}")
+                        last_errors = [smoke_error]
+                        await self.plugins.trigger_on_validate_error(html_code, last_errors)
+                        should_fix_previous = True
+                        continue
                 logger.info("Validation passed successfully!")
                 await self.plugins.trigger_post_generate(prompt, html_code)
                 return html_code
@@ -138,14 +153,35 @@ class GameGenerator:
             await self.plugins.trigger_on_validate_error(html_code, last_errors)
             should_fix_previous = True
 
-        # If retries exhausted but we have some extracted HTML, log warning and return best effort
-        if html_code and "<html" in html_code.lower() and "</script>" in html_code.lower():
-            logger.warning("Max retries reached; returning best effort HTML.")
-            return html_code
+        # Retries exhausted: never return invalid best-effort HTML as a playable
+        # game. Persist the failed draft for inspection, then fall back to the
+        # guaranteed playable game.
+        if html_code:
+            draft_path = self._save_failed_draft(html_code, prompt)
+            logger.warning(
+                f"Max retries reached; invalid draft saved to {draft_path} "
+                f"(errors: {last_errors})."
+            )
 
         logger.warning(f"Retries exhausted ({last_errors}). Falling back to guaranteed playable game.")
         await _notify(f"\n⚠️ Retries exhausted ({'; '.join(last_errors)}). Loading instant playable game...\n")
         fallback_html = _build_instant_or_fallback()
         await self.plugins.trigger_post_generate(prompt, fallback_html)
         return fallback_html
+
+    def _save_failed_draft(self, html_code: str, prompt: str) -> Optional[str]:
+        """Persist an invalid generation draft under ``<output_dir>/failed_drafts``."""
+        try:
+            import time
+            from pathlib import Path
+
+            draft_dir = Path(self.settings.output_dir) / "failed_drafts"
+            draft_dir.mkdir(parents=True, exist_ok=True)
+            slug = "".join(c if c.isalnum() else "-" for c in prompt.lower())[:40].strip("-")
+            draft_path = draft_dir / f"{slug or 'draft'}-{int(time.time())}.html"
+            draft_path.write_text(html_code, encoding="utf-8")
+            return str(draft_path)
+        except Exception as exc:  # pragma: no cover - draft saving is best effort
+            logger.warning(f"Could not save failed draft: {exc}")
+            return None
 

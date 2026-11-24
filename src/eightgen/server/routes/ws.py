@@ -4,6 +4,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from eightgen.config.loader import get_settings
 from eightgen.core.agent import Agent
+from eightgen.server.security import client_ip, session_cookie_valid
 
 router = APIRouter(tags=["websocket"])
 
@@ -11,11 +12,26 @@ router = APIRouter(tags=["websocket"])
 @router.websocket("/ws/generate")
 async def websocket_generate(websocket: WebSocket):
     """Stream LLM tokens during game generation over WebSocket."""
-    await websocket.accept()
     settings = get_settings()
-    agent = Agent(settings)
+
+    # HTTP middleware does not run for WebSocket handshakes, so authenticate
+    # and rate limit here before accepting the connection.
+    if settings.api_token:
+        if not session_cookie_valid(settings.api_token, websocket.headers.get("cookie")):
+            await websocket.close(code=4401)
+            return
+
+    limiter = getattr(websocket.app.state, "limiter", None)
+    if limiter is not None:
+        ip = client_ip(websocket.headers, websocket.client)
+        if not limiter.allow(f"POST:/ws/generate:{ip}"):
+            await websocket.close(code=4429)
+            return
+
+    await websocket.accept()
 
     try:
+        agent = Agent(settings)
         raw_msg = await websocket.receive_text()
         data = json.loads(raw_msg)
         prompt = data.get("prompt", "").strip()

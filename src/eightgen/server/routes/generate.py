@@ -10,7 +10,10 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 
 
 def get_agent() -> Agent:
-    return Agent(get_settings())
+    try:
+        return Agent(get_settings())
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 class GenerateRequest(BaseModel):

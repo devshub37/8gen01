@@ -26,8 +26,9 @@ def show_config() -> None:
     table.add_column("Key", style="bold cyan")
     table.add_column("Value", style="white")
 
-    table.add_row("Active Provider", f"[bold green]{settings.provider.upper()}[/bold green]")
-    if settings.provider == "gemini":
+    active_provider = settings.resolved_provider
+    table.add_row("Active Provider", f"[bold green]{active_provider.upper()}[/bold green]")
+    if active_provider == "gemini":
         key_masked = f"{settings.gemini_api_key[:6]}...{settings.gemini_api_key[-4:]}" if len(settings.gemini_api_key) > 10 else "[red]Not configured[/red]"
         table.add_row("Gemini Model", settings.gemini_model)
         table.add_row("Gemini API Key", key_masked)
@@ -77,17 +78,22 @@ def check_config() -> None:
     """Diagnose AI Provider (Gemini or Ollama) connectivity."""
     print_banner()
     settings = get_settings()
-    agent = Agent(settings)
+    active_provider = settings.resolved_provider
+    try:
+        agent = Agent(settings)
+    except ValueError as exc:
+        print_error(f"Configuration error: {exc}")
+        return
 
     async def _check():
-        print_status(f"Testing active provider: [bold cyan]{settings.provider.upper()}[/bold cyan]...")
+        print_status(f"Testing active provider: [bold cyan]{active_provider.upper()}[/bold cyan]...")
         health = await agent.check_health()
         if health.get("connected"):
-            print_success(f"Provider '{settings.provider}' is connected and ready!")
+            print_success(f"Provider '{active_provider}' is connected and ready!")
             console.print(f"  ★ Model: [cyan]{health.get('configured_model')}[/cyan]")
         else:
-            print_error(f"Provider '{settings.provider}' is not reachable or not configured.")
-            if settings.provider == "gemini":
+            print_error(f"Provider '{active_provider}' is not reachable or not configured.")
+            if active_provider == "gemini":
                 console.print("\n[yellow]To use Gemini (100x faster, high quality games):[/yellow]")
                 console.print("1. Get a free API key at [bold cyan]https://aistudio.google.com/[/bold cyan]")
                 console.print("2. Run: [bold]8gen config set-key YOUR_GEMINI_KEY[/bold]")

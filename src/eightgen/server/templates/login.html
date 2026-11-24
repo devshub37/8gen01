@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in — 8Gen Studio{% endblock %}
+
+{% block content %}
+<section class="page-section" style="min-height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center;">
+  <div class="container" style="max-width: 420px;">
+    <div class="product-mockup-card" style="padding: 32px;">
+      <div class="badge-pill" style="margin-bottom: 16px;">🔒 Protected Deployment</div>
+      <h1 class="title-md" style="margin-bottom: 8px;">Access token required</h1>
+      <p class="body-sm" style="margin-bottom: 20px; color: var(--color-muted);">
+        This deployment is protected. Enter the access token configured as
+        <code>EIGHTGEN_API_TOKEN</code> to continue.
+      </p>
+
+      <input
+        id="auth-token-input"
+        type="password"
+        class="text-input"
+        style="width: 100%; height: 42px; margin-bottom: 12px;"
+        placeholder="Access token"
+        autocomplete="current-password"
+        autofocus
+      />
+      <div id="auth-error" class="caption" style="color: var(--color-error); margin-bottom: 12px; display: none;"></div>
+      <button id="auth-signin-btn" type="button" class="btn-primary" style="width: 100%; height: 42px;">
+        Sign in
+      </button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById("auth-token-input");
+  const button = document.getElementById("auth-signin-btn");
+  const errorEl = document.getElementById("auth-error");
+  const nextTarget = {{ next | tojson }};
+
+  async function signIn() {
+    const token = input ? input.value.trim() : "";
+    if (!token) {
+      if (input) input.focus();
+      return;
+    }
+    if (button) button.disabled = true;
+    if (errorEl) errorEl.style.display = "none";
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token }),
+      });
+      if (res.ok) {
+        window.location.assign(nextTarget || "/");
+        return;
+      }
+      let detail = "Sign-in failed.";
+      try {
+        const body = await res.json();
+        if (body && body.detail) detail = body.detail;
+      } catch (e) {}
+      if (errorEl) {
+        errorEl.textContent = detail;
+        errorEl.style.display = "block";
+      }
+    } catch (e) {
+      if (errorEl) {
+        errorEl.textContent = "Could not reach the server. Please try again.";
+        errorEl.style.display = "block";
+      }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  if (button) button.addEventListener("click", signIn);
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        signIn();
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

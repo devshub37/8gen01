@@ -1,7 +1,24 @@
-"""Integration test for OllamaProvider against local Ollama instance."""
+"""Integration test for OllamaProvider against local Ollama instance.
+
+Gated behind the ``integration`` marker and the ``OLLAMA_INTEGRATION=1``
+environment variable so a default ``pytest`` run stays green without a local
+Ollama daemon:
+
+    OLLAMA_INTEGRATION=1 pytest -m integration
+"""
+
+import os
 
 import pytest
 from eightgen.llm.ollama import OllamaProvider
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("OLLAMA_INTEGRATION", "").strip().lower() not in ("1", "true", "yes", "on"),
+        reason="Ollama integration test; set OLLAMA_INTEGRATION=1 to run",
+    ),
+]
 
 
 @pytest.mark.asyncio

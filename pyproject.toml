@@ -43,6 +43,9 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "integration: tests that require external services (e.g. a local Ollama instance); skipped unless OLLAMA_INTEGRATION=1",
+]
 
 [tool.vercel]
 entrypoint = "api.index:app"

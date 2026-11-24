@@ -51,7 +51,7 @@ class Agent:
         is_up = await self.provider.is_healthy()
         models = await self.provider.list_models() if is_up else []
         return {
-            "provider": self.settings.provider,
+            "provider": self.settings.resolved_provider,
             "connected": is_up,
             "ollama_connected": is_up,
             "configured_model": getattr(self.provider, "model", self.settings.model),

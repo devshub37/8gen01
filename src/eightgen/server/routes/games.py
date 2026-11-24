@@ -16,11 +16,56 @@ from eightgen.core.engine.archetypes import (
     build_flappy_drone_game,
 )
 from eightgen.storage.models import Game
+from eightgen.server.security import GAME_SANDBOX_CSP
 
 router = APIRouter(prefix="/api/games", tags=["games"])
 
 _EMBED_CONTROL_SCRIPT = """<script>
 (function () {
+  // --- Opaque-origin storage shim ---------------------------------------
+  // Games served into sandboxed frames run in an opaque origin where touching
+  // localStorage/sessionStorage throws a SecurityError. Mirror both with an
+  // in-memory store so high-score persistence keeps working.
+  function makeStorage() {
+    var data = Object.create(null);
+    return {
+      getItem: function (k) { k = String(k); return k in data ? data[k] : null; },
+      setItem: function (k, v) { data[String(k)] = String(v); },
+      removeItem: function (k) { delete data[String(k)]; },
+      clear: function () { data = Object.create(null); },
+      key: function (i) {
+        var keys = Object.keys(data);
+        return i >= 0 && i < keys.length ? keys[i] : null;
+      },
+      get length() { return Object.keys(data).length; }
+    };
+  }
+  function ensureStorage(name) {
+    try {
+      var existing = window[name];
+      if (existing && typeof existing.getItem === "function") {
+        existing.getItem("__eg_probe");
+        return;
+      }
+    } catch (e) {}
+    try {
+      Object.defineProperty(window, name, { configurable: true, value: makeStorage() });
+    } catch (e) {}
+  }
+  ensureStorage("localStorage");
+  ensureStorage("sessionStorage");
+  try {
+    var cookieValue = "";
+    Object.defineProperty(document, "cookie", {
+      configurable: true,
+      get: function () { return cookieValue; },
+      set: function (value) {
+        var pair = String(value).split(";")[0];
+        cookieValue = cookieValue ? cookieValue + "; " + pair : pair;
+      }
+    });
+  } catch (e) {}
+
   if (window.__egCtrl) return;
   var paused = false, offset = 0, pAt = null;
   var oRaf = window.requestAnimationFrame.bind(window);
@@ -112,13 +157,64 @@ _EMBED_CONTROL_SCRIPT = """<script>
     },
     isPaused: function () { return paused; }
   };
+
+  // --- postMessage bridge -------------------------------------------------
+  // The embedding page is cross-origin inside a sandboxed frame, so pause,
+  // resume, and keyboard forwarding travel via postMessage instead of direct
+  // contentWindow access.
+  function _replyState() {
+    try {
+      window.parent.postMessage(
+        { __eg: 1, type: "state", paused: window.__egCtrl.isPaused() },
+        "*"
+      );
+    } catch (e) {}
+  }
+  function _forwardKey(data) {
+    if (!data || typeof data.keyEvent !== "string") return;
+    var init = {
+      key: data.key || "",
+      code: data.code || "",
+      bubbles: true,
+      cancelable: true,
+      repeat: !!data.repeat,
+    };
+    if (typeof data.keyCode === "number") {
+      init.keyCode = data.keyCode;
+      init.charCode = data.keyCode;
+    }
+    var event;
+    try {
+      event = new KeyboardEvent(
+        data.keyEvent === "keyup" ? "keyup" : "keydown",
+        init
+      );
+    } catch (e) {
+      event = document.createEvent("Event");
+      event.initEvent(init.key, true, true);
+    }
+    (document.body || document).dispatchEvent(event);
+  }
+  window.addEventListener("message", function (e) {
+    if (e.source !== window.parent) return;
+    var d = e.data;
+    if (!d || typeof d !== "object" || d.__eg !== 1) return;
+    if (d.action === "pause") { window.__egCtrl.pause(); _replyState(); }
+    else if (d.action === "resume") { window.__egCtrl.resume(); _replyState(); }
+    else if (d.action === "state") { _replyState(); }
+    else if (d.action === "key") { _forwardKey(d); }
+  });
 })();
 </script>"""
 
 
-def _with_embed_controls(html: str, ctrl: bool) -> str:
-    if not ctrl:
-        return html
+def _with_embed_controls(html: str, ctrl: bool = True) -> str:
+    """Inject the storage shim, pause controls, and postMessage bridge.
+
+    Injection is always applied: sandboxed frames need the storage shim, and
+    the bridge stays inert unless the embedding page posts messages. ``ctrl``
+    is kept only so existing URLs (``?ctrl=1``) remain valid.
+    """
     head_match = re.search(r"<head\b[^>]*>", html, re.IGNORECASE)
     if head_match:
         idx = head_match.end()
@@ -131,7 +227,20 @@ def _with_embed_controls(html: str, ctrl: bool) -> str:
 
 
 def get_agent() -> Agent:
-    return Agent(get_settings())
+    try:
+        return Agent(get_settings())
+    except ValueError as exc:
+        # Misconfigured provider selection (e.g. gemini without an API key)
+        # should surface as an actionable API error, not a bare 500.
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+def _game_response(html: str) -> HTMLResponse:
+    """Serve game HTML with a sandbox CSP so it runs in an opaque origin."""
+    return HTMLResponse(
+        content=_with_embed_controls(html),
+        headers={"Content-Security-Policy": GAME_SANDBOX_CSP},
+    )
 
 
 @router.get("/archetype/{name}", response_class=HTMLResponse)
@@ -148,7 +257,7 @@ def get_archetype_html(name: str, ctrl: bool = False):
         html = build_flappy_drone_game("Aero Drone Odyssey")
     else:
         html = build_space_shooter_game("Neon Space Defender")
-    return HTMLResponse(content=_with_embed_controls(html, ctrl))
+    return _game_response(html)
 
 
 class RefineRequest(BaseModel):
@@ -186,9 +295,9 @@ def play_game(
     if version is not None:
         for v in game.versions:
             if v.version == version:
-                return HTMLResponse(content=_with_embed_controls(v.html_content, ctrl))
+                return _game_response(v.html_content)
 
-    return HTMLResponse(content=_with_embed_controls(game.latest_html, ctrl))
+    return _game_response(game.latest_html)
 
 
 @router.get("/{game_id}/download")

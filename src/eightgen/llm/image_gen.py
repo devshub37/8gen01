@@ -2,8 +2,8 @@
 
 import base64
 import re
-import time
 from typing import Any, Dict, Optional, Tuple
+from uuid import uuid4
 import httpx
 
 from eightgen.config.settings import Settings, is_vercel
@@ -247,11 +247,15 @@ class ImageGenerator:
     def _save_asset_bytes(
         self, raw_bytes: bytes, prompt: str, mime_type: str, ext: str
     ) -> Dict[str, Any]:
-        """Save generated image or SVG bytes to disk and return API metadata."""
+        """Save generated image or SVG bytes to disk and return API metadata.
+
+        Filenames combine a readable slug with a UUID fragment so concurrent
+        generations can never collide (timestamp-only names could overwrite
+        each other within the same second).
+        """
         slug = re.sub(r"[^\w\s-]", "", prompt.lower())
         slug = re.sub(r"[-\s]+", "-", slug).strip("-_")[:30] or "asset"
-        timestamp = int(time.time())
-        filename = f"{timestamp}_{slug}.{ext}"
+        filename = f"{slug}-{uuid4().hex[:16]}.{ext}"
         filepath = self.assets_dir / filename
         filepath.write_bytes(raw_bytes)
 

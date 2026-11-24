@@ -180,10 +180,50 @@ function appendCtrlQuery(url) {
   return url.includes("ctrl=") ? url : `${url}${sep}ctrl=1`;
 }
 
+function handleAuthFailure(res) {
+  // Session missing/expired on an authenticated deployment: send the user to
+  // the sign-in page instead of surfacing a confusing JSON error.
+  if (res && res.status === 401) {
+    window.location.assign("/login");
+    return true;
+  }
+  return false;
+}
+
 function injectControlShimIntoHtml(html) {
   if (!html || html.includes("window.__egCtrl")) return html;
   const shim = `<script>
 (function () {
+  // Storage shim for opaque-origin (sandboxed) frames: mirror localStorage /
+  // sessionStorage in memory when the real ones throw a SecurityError.
+  function makeStorage() {
+    var data = Object.create(null);
+    return {
+      getItem: function (k) { k = String(k); return k in data ? data[k] : null; },
+      setItem: function (k, v) { data[String(k)] = String(v); },
+      removeItem: function (k) { delete data[String(k)]; },
+      clear: function () { data = Object.create(null); },
+      key: function (i) {
+        var keys = Object.keys(data);
+        return i >= 0 && i < keys.length ? keys[i] : null;
+      },
+      get length() { return Object.keys(data).length; }
+    };
+  }
+  function ensureStorage(name) {
+    try {
+      var existing = window[name];
+      if (existing && typeof existing.getItem === "function") {
+        existing.getItem("__eg_probe");
+        return;
+      }
+    } catch (e) {}
+    try {
+      Object.defineProperty(window, name, { configurable: true, value: makeStorage() });
+    } catch (e) {}
+  }
+  ensureStorage("localStorage");
+  ensureStorage("sessionStorage");
   if (window.__egCtrl) return;
   var paused = false, offset = 0, pAt = null;
   var oRaf = window.requestAnimationFrame.bind(window);
@@ -250,6 +290,35 @@ function injectControlShimIntoHtml(html) {
     },
     isPaused: function () { return paused; }
   };
+  // postMessage bridge: the embedding page is cross-origin in a sandboxed
+  // frame, so pause/resume/keys arrive via postMessage.
+  function _replyState() {
+    try {
+      window.parent.postMessage({ __eg: 1, type: "state", paused: window.__egCtrl.isPaused() }, "*");
+    } catch (e) {}
+  }
+  function _forwardKey(data) {
+    if (!data || typeof data.keyEvent !== "string") return;
+    var init = { key: data.key || "", code: data.code || "", bubbles: true, cancelable: true, repeat: !!data.repeat };
+    if (typeof data.keyCode === "number") { init.keyCode = data.keyCode; init.charCode = data.keyCode; }
+    var event;
+    try {
+      event = new KeyboardEvent(data.keyEvent === "keyup" ? "keyup" : "keydown", init);
+    } catch (e) {
+      event = document.createEvent("Event");
+      event.initEvent(init.key, true, true);
+    }
+    (document.body || document).dispatchEvent(event);
+  }
+  window.addEventListener("message", function (e) {
+    if (e.source !== window.parent) return;
+    var d = e.data;
+    if (!d || typeof d !== "object" || d.__eg !== 1) return;
+    if (d.action === "pause") { window.__egCtrl.pause(); _replyState(); }
+    else if (d.action === "resume") { window.__egCtrl.resume(); _replyState(); }
+    else if (d.action === "state") { _replyState(); }
+    else if (d.action === "key") { _forwardKey(d); }
+  });
 })();
 </` + `script>`;
   if (/<head\b[^>]*>/i.test(html)) {
@@ -307,6 +376,16 @@ function createIframeGameController(config) {
     } catch (e) {}
   }
 
+  function postCtrl(action) {
+    // Frames are sandboxed without same-origin access, so control messages
+    // travel over postMessage (the game document listens for them).
+    try {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ __eg: 1, action: action }, "*");
+      }
+    } catch (e) {}
+  }
+
   function loadSource(source) {
     if (!source) return;
     state.lastSource = source;
@@ -332,12 +411,7 @@ function createIframeGameController(config) {
   function pause() {
     if (state.exited || state.paused) return;
     state.paused = true;
-    try {
-      const win = iframe.contentWindow;
-      if (win && win.__egCtrl) {
-        win.__egCtrl.pause();
-      }
-    } catch (e) {}
+    postCtrl("pause");
     syncUi();
     if (pauseOverlay) pauseOverlay.focus();
   }
@@ -345,12 +419,7 @@ function createIframeGameController(config) {
   function resume() {
     if (state.exited || !state.paused) return;
     state.paused = false;
-    try {
-      const win = iframe.contentWindow;
-      if (win && win.__egCtrl) {
-        win.__egCtrl.resume();
-      }
-    } catch (e) {}
+    postCtrl("resume");
     syncUi();
     setTimeout(focusFrame, 80);
   }
@@ -368,10 +437,7 @@ function createIframeGameController(config) {
   function exit() {
     state.paused = false;
     state.exited = true;
-    try {
-      const win = iframe.contentWindow;
-      if (win && win.__egCtrl) win.__egCtrl.pause();
-    } catch (e) {}
+    postCtrl("pause");
     iframe.dataset.useSrcdoc = "0";
     iframe.removeAttribute("srcdoc");
     iframe.src = "about:blank";
@@ -385,19 +451,10 @@ function createIframeGameController(config) {
 
   iframe.addEventListener("load", () => {
     if (state.exited) return;
-    try {
-      const win = iframe.contentWindow;
-      if (win && !win.__egCtrl && win.location && win.location.href !== "about:blank") {
-        // Fallback patch if external game loaded without query control shim
-        const script = iframe.contentDocument && iframe.contentDocument.createElement("script");
-        if (script) {
-          script.textContent = injectControlShimIntoHtml("<head></head>").replace(/<\/?head>/g, "");
-          iframe.contentDocument.head && iframe.contentDocument.head.prepend(script);
-        }
-      }
-    } catch (e) {}
+    // The frame is cross-origin (sandboxed): the control script is injected
+    // server-side and driven over postMessage, so re-apply a pending pause.
     if (state.paused) {
-      pause();
+      postCtrl("pause");
     }
   });
 
@@ -743,8 +800,11 @@ function setupViewportFocus() {
     wbViewport.addEventListener("click", focusWorkbenchFrame);
   }
 
-  // Forward keyboard controls from parent window to workbench iframe
-  window.addEventListener("keydown", (e) => {
+  // Forward keyboard controls from parent window to workbench iframe.
+  // The frame is cross-origin (sandboxed without same-origin access), so
+  // events travel via postMessage and are re-dispatched inside the frame.
+  const handledKeys = ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD"];
+  const forwardKey = (e, keyEvent) => {
     const active = document.activeElement;
     if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
       return;
@@ -752,17 +812,25 @@ function setupViewportFocus() {
     if (wbController && (wbController.paused || wbController.exited)) {
       return;
     }
-    const handledKeys = ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD"];
-    if (handledKeys.includes(e.code)) {
-      const wb = document.getElementById("workbench-frame");
-      if (wb && wb.contentWindow) {
-        try {
-          wb.contentWindow.focus();
-          wb.contentWindow.dispatchEvent(new KeyboardEvent("keydown", { code: e.code, key: e.key, bubbles: true }));
-        } catch (err) {}
-      }
+    if (!handledKeys.includes(e.code)) return;
+    const wb = document.getElementById("workbench-frame");
+    if (wb && wb.contentWindow) {
+      try {
+        wb.contentWindow.focus();
+        wb.contentWindow.postMessage({
+          __eg: 1,
+          action: "key",
+          keyEvent: keyEvent,
+          key: e.key,
+          code: e.code,
+          keyCode: e.keyCode,
+          repeat: e.repeat,
+        }, "*");
+      } catch (err) {}
     }
-  });
+  };
+  window.addEventListener("keydown", (e) => forwardKey(e, "keydown"));
+  window.addEventListener("keyup", (e) => forwardKey(e, "keyup"));
 }
 
 function focusWorkbenchFrame() {
@@ -969,6 +1037,15 @@ async function fallbackHttpGenerate(prompt, gameReference, instant) {
       body: JSON.stringify({ prompt, game_reference: gameReference, instant }),
     });
 
+    if (res.status === 401) {
+      streamPanel.textContent += "\n🔒 Authentication required — redirecting to sign in...";
+      window.location.assign("/login");
+      return;
+    }
+    if (res.status === 429) {
+      throw new Error("Rate limit reached — please wait a moment and try again.");
+    }
+
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.detail || "Generation failed");
@@ -1049,6 +1126,7 @@ async function fetchGames() {
 
   try {
     const res = await fetch("/api/games");
+    if (handleAuthFailure(res)) return;
     let games = await res.json();
     if (!Array.isArray(games)) games = [];
     games.forEach(cacheGameLocally);
@@ -1181,8 +1259,16 @@ function promptRefine(gameId, title) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ instruction }),
   })
-    .then((res) => {
-      if (!res.ok) throw new Error("Refinement failed");
+    .then(async (res) => {
+      if (handleAuthFailure(res)) throw new Error("Authentication required");
+      if (!res.ok) {
+        let detail = "Refinement failed";
+        try {
+          const body = await res.json();
+          if (body && body.detail) detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+        } catch (e) {}
+        throw new Error(detail);
+      }
       return res.json();
     })
     .then((updated) => {
@@ -1216,7 +1302,16 @@ function handleDownloadGame(event, gameId, slug) {
 async function deleteGame(gameId) {
   if (!confirm("Are you sure you want to delete this game?")) return;
   try {
-    await fetch(`/api/games/${gameId}`, { method: "DELETE" });
+    const res = await fetch(`/api/games/${gameId}`, { method: "DELETE" });
+    if (handleAuthFailure(res)) return;
+    if (res.status === 429) {
+      alert("Rate limit reached — please wait a moment and try again.");
+      return;
+    }
+    if (!res.ok && res.status !== 404) {
+      alert("Could not delete game.");
+      return;
+    }
     removeCachedGame(gameId);
     fetchGames();
   } catch (err) {

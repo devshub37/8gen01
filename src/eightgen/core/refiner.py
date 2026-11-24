@@ -83,8 +83,37 @@ class GameRefiner:
             last_errors = val_result.errors
             await self.plugins.trigger_on_validate_error(html_code, last_errors)
 
-        if html_code and "<html" in html_code.lower():
-            logger.warning("Max retries reached; returning best effort refined HTML.")
-            return html_code
+        # Never return invalid refined HTML: persist the failed draft so the
+        # user can inspect it, then fail loudly instead of silently shipping a
+        # broken game.
+        if html_code:
+            draft_path = self._save_failed_draft(game_id, html_code, instruction)
+            logger.warning(
+                f"Max retries reached; invalid refined draft saved to {draft_path} "
+                f"(errors: {last_errors})."
+            )
 
-        raise RefinementError(f"Failed to refine game after {max_attempts} attempts: {last_errors}")
+        raise RefinementError(
+            f"Failed to refine game after {max_attempts} attempts: {last_errors}"
+            + (
+                f". The invalid draft was kept at {draft_path}."
+                if html_code and draft_path
+                else ""
+            )
+        )
+
+    def _save_failed_draft(self, game_id: str, html_code: str, instruction: str) -> Optional[str]:
+        """Persist an invalid refinement draft under ``<output_dir>/failed_drafts``."""
+        try:
+            import time
+            from pathlib import Path
+
+            draft_dir = Path(self.settings.output_dir) / "failed_drafts"
+            draft_dir.mkdir(parents=True, exist_ok=True)
+            slug = "".join(c if c.isalnum() else "-" for c in instruction.lower())[:40].strip("-")
+            draft_path = draft_dir / f"{game_id}-{slug or 'refine'}-{int(time.time())}.html"
+            draft_path.write_text(html_code, encoding="utf-8")
+            return str(draft_path)
+        except Exception as exc:  # pragma: no cover - draft saving is best effort
+            logger.warning(f"Could not save failed refinement draft: {exc}")
+            return None

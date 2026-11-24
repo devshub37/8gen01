@@ -125,23 +125,26 @@ def test_theme_switcher_playback_controls_and_ctrl_shim(monkeypatch, tmp_path):
     for theme_name in ("light", "dark", "gaming", "retro", "terminal"):
         assert f'data-theme="{theme_name}"' in css.text
 
-    # Raw archetype vs ?ctrl=1 embedded shim
+    # Embedded control/storage shim is injected into every served game document
+    # (sandboxed frames need the storage shim regardless of ?ctrl=1).
     raw_arch = client.get("/api/games/archetype/shooter")
     assert raw_arch.status_code == 200
-    assert "window.__egCtrl" not in raw_arch.text
+    assert "window.__egCtrl" in raw_arch.text
+    assert "localStorage" in raw_arch.text
+    assert "sandbox allow-scripts" in raw_arch.headers.get("content-security-policy", "")
 
     ctrl_arch = client.get("/api/games/archetype/shooter?ctrl=1")
     assert ctrl_arch.status_code == 200
     assert "window.__egCtrl" in ctrl_arch.text
 
-    # Generated game play endpoint raw vs ?ctrl=1
+    # Generated game play endpoint (shim always injected)
     created = client.post(
         "/api/generate",
         json={"prompt": "", "game_reference": "snake", "instant": True},
     ).json()
     raw_play = client.get(f"/api/games/{created['id']}/play")
     assert raw_play.status_code == 200
-    assert "window.__egCtrl" not in raw_play.text
+    assert "window.__egCtrl" in raw_play.text
 
     ctrl_play = client.get(f"/api/games/{created['id']}/play?ctrl=1")
     assert ctrl_play.status_code == 200
