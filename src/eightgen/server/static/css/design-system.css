@@ -1504,6 +1504,23 @@ html[data-theme="terminal"] .viewport-toolbar {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* Light theme renders these bands on the light canvas, so text must stay dark */
+html[data-theme="light"] .ps-band-dark .title-sm,
+html[data-theme="light"] .ps-band-dark .title-md,
+html[data-theme="light"] .ps-band-dark .display-xl,
+html[data-theme="light"] .ps-band-dark .display-lg,
+html[data-theme="light"] .ps-band-dark .display-md,
+html[data-theme="light"] .ps-band-dark .display-sm,
+html[data-theme="light"] .ps-band-dark .heading-xl,
+html[data-theme="light"] .ps-band-dark .heading-lg {
+  color: var(--color-ink);
+}
+
+html[data-theme="light"] .ps-band-dark .body-md,
+html[data-theme="light"] .ps-band-dark .body-sm {
+  color: var(--color-body);
+}
+
 .ps-band-light {
   background-color: var(--color-surface-soft);
   color: var(--color-ink);
