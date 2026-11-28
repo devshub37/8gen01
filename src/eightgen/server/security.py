@@ -91,11 +91,17 @@ def is_public_path(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(PUBLIC_PATH_PREFIXES)
 
 
-def client_ip(headers, client) -> str:
-    """Best-effort client IP, honoring ``X-Forwarded-For`` from our proxies."""
-    forwarded = headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
+def client_ip(headers, client, trust_proxy: bool = False) -> str:
+    """Best-effort client IP.
+
+    ``X-Forwarded-For`` is client-controlled unless a trusted reverse proxy
+    overwrites it, so it is only honored when ``trust_proxy`` is explicitly
+    enabled. Otherwise an attacker can rotate the header to bypass rate limits.
+    """
+    if trust_proxy:
+        forwarded = headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip() or "unknown"
     if client is not None:
         return getattr(client, "host", None) or (client[0] if client else "unknown")
     return "unknown"
@@ -150,7 +156,7 @@ def install_security(app, settings) -> RateLimiter:
 
         # 1. Rate limit mutating traffic (generation, refinement, deletion...).
         if method not in ("GET", "HEAD", "OPTIONS") and path.startswith(("/api/", "/ws/")):
-            ip = client_ip(request.headers, request.client)
+            ip = client_ip(request.headers, request.client, settings.trust_proxy)
             if not limiter.allow(f"{method}:{path}:{ip}"):
                 return JSONResponse(
                     status_code=429,

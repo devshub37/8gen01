@@ -16,5 +16,18 @@ Generate a **simpler, lightweight, immediately runnable** version of {{ referenc
 **Architecture Advice**:
 {{ skeleton_hint }}
 {% endif %}
+{% if design_brief %}
+**Design & Physics Brief (distilled from proven games)**:
+{{ design_brief }}
+{% endif %}
+
+**Non-negotiable quality contract**:
+- One self-contained HTML file. No CDN, external images, fonts, or audio.
+- Keyboard **and** touch/pointer controls. Call `preventDefault()` for arrows and Space.
+- Fixed 1/60 s timestep (or delta-time clamped to 0.05 s). Never use px-per-frame movement.
+- Pause on `visibilitychange`/blur, a visible restart, and a clear start/game-over state.
+- Canvas scales to the viewport without stretching; the game starts in under one second.
+- No placeholders, TODOs, `alert()`/`prompt()` dialogs, or console-only errors.
+- Use `try/catch` around `localStorage` because sandboxed frames may block it.
 
 Generate the complete, working single-file HTML code now.

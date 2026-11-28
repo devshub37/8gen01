@@ -1,23 +1,27 @@
 """Image generation and game asset API routes."""
 
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel, Field
 
 from eightgen.config.loader import get_settings
-from eightgen.llm.image_gen import ImageGenerator, ImageGenerationError
+from eightgen.llm.image_gen import ImageGenerator
+from eightgen.utils.logger import get_logger
+
+logger = get_logger("eightgen.server.images")
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
 
 class ImageRequest(BaseModel):
-    prompt: str
-    style: Optional[str] = "pixel-art"
-    size: Optional[str] = "1024x1024"
+    prompt: str = Field(min_length=1, max_length=1000)
+    style: Optional[str] = Field(default="pixel-art", max_length=64)
+    size: Optional[str] = Field(default="1024x1024", max_length=32)
 
 
-def get_generator() -> ImageGenerator:
-    return ImageGenerator(get_settings())
+def get_generator(request: Request) -> ImageGenerator:
+    settings = getattr(request.app.state, "settings", None) or get_settings()
+    return ImageGenerator(settings)
 
 
 @router.post("/generate")
@@ -30,8 +34,12 @@ async def generate_image(payload: ImageRequest, gen: ImageGenerator = Depends(ge
             size=payload.size or "1024x1024",
         )
         return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Image generation failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Image generation failed. Check the server logs for details.",
+        )
 
 
 @router.get("")

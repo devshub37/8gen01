@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Optional
 import click
-from eightgen.cli.display import console, print_banner, print_error, print_success
+from eightgen.cli.display import print_banner, print_error, print_success
 from eightgen.config.loader import get_settings
 from eightgen.core.agent import Agent
 

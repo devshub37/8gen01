@@ -67,6 +67,7 @@ def tmp_settings(tmp_path: Path) -> Settings:
         db_path=db_file,
         auto_open=False,
         max_retries=2,
+        learn_from_web=False,
     )
     settings.ensure_directories()
     return settings

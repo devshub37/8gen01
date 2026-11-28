@@ -7,5 +7,9 @@ Here is the existing game code:
 Please refine and improve this game with the following requested changes:
 
 **Requested Changes**: {{ instruction }}
+{% if design_brief %}
+**Design & Physics Brief (keep the existing feel unless asked to change it)**:
+{{ design_brief }}
+{% endif %}
 
-Output the complete, updated HTML file with the requested improvements integrated.
+Preserve the existing keyboard/touch controls, pause/restart flow, and physics unless the requested change explicitly replaces them. Output the complete, updated HTML file with the requested improvements integrated.

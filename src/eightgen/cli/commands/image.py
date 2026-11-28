@@ -1,7 +1,6 @@
 """CLI image generation command."""
 
 import asyncio
-from typing import Optional
 import click
 from eightgen.cli.display import console, print_banner, print_status, print_error, print_success
 from eightgen.config.loader import get_settings

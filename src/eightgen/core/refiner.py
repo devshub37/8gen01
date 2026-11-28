@@ -9,6 +9,7 @@ from eightgen.llm.prompt_builder import PromptBuilder
 from eightgen.plugins.manager import get_plugin_manager
 from eightgen.utils.logger import get_logger
 
+import asyncio
 import inspect
 
 logger = get_logger("eightgen.refiner")
@@ -39,11 +40,14 @@ class GameRefiner:
         existing_html: str,
         instruction: str,
         stream_callback: Optional[Callable[[str], None]] = None,
+        design_brief: str = "",
     ) -> str:
         """Apply user modifications to existing game code."""
         await self.plugins.trigger_pre_refine(game_id, instruction)
 
-        messages = self.prompt_builder.build_refine_messages(existing_html, instruction)
+        messages = self.prompt_builder.build_refine_messages(
+            existing_html, instruction, design_brief=design_brief
+        )
         max_attempts = max(1, self.settings.max_retries)
         last_errors = []
         raw_output = ""
@@ -52,7 +56,9 @@ class GameRefiner:
             logger.info(f"Refinement attempt {attempt}/{max_attempts}...")
 
             if attempt > 1:
-                messages = self.prompt_builder.build_fix_messages(raw_output, last_errors)
+                messages = self.prompt_builder.build_fix_messages(
+                    raw_output, last_errors, design_brief=design_brief
+                )
 
             raw_chunks = []
             if stream_callback:
@@ -73,7 +79,11 @@ class GameRefiner:
                 await self.plugins.trigger_on_validate_error(raw_output, last_errors)
                 continue
 
-            val_result: ValidationResult = GameValidator.validate(html_code)
+            val_result: ValidationResult = await asyncio.to_thread(
+                GameValidator.validate,
+                html_code,
+                check_js=self.settings.js_syntax_check,
+            )
             if val_result.is_valid:
                 logger.info("Refinement validation passed successfully!")
                 await self.plugins.trigger_post_refine(game_id, html_code)

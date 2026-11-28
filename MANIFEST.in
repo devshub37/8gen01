@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+include QUICKSTART.md
+include design.md
+include src/eightgen/config/default.toml
+recursive-include src/eightgen/prompts *.j2
+recursive-include src/eightgen/server/templates *.html
+recursive-include src/eightgen/server/static *
+recursive-include src/eightgen/templates *.html

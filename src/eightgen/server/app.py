@@ -3,6 +3,9 @@
 import asyncio
 import hmac
 from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from eightgen.config.loader import get_settings
-from eightgen.config.settings import is_vercel
+from eightgen.config.settings import Settings, is_vercel
 from eightgen.core.agent import Agent
 from eightgen.core.engine.references import REFERENCE_GAMES
 from eightgen.server.routes.games import router as games_router
@@ -25,15 +28,13 @@ from eightgen.server.security import (
     session_cookie_valid,
     sign_session_token,
 )
+from eightgen.utils.logger import get_logger
+
+logger = get_logger("eightgen.server")
 
 SERVER_DIR = Path(__file__).parent
 STATIC_DIR = SERVER_DIR / "static"
 TEMPLATES_DIR = SERVER_DIR / "templates"
-
-
-class KeyUpdateRequest(BaseModel):
-    api_key: str
-    provider: str = "gemini"
 
 
 class LoginRequest(BaseModel):
@@ -41,21 +42,54 @@ class LoginRequest(BaseModel):
 
 
 def _safe_next(next_target: str) -> str:
-    """Only allow redirecting back to a local path."""
-    if next_target.startswith("/") and not next_target.startswith("//"):
-        return next_target
-    return "/"
+    """Only allow redirecting back to a local path.
+
+    Rejects absolute URLs, protocol-relative URLs, backslashes, and control
+    characters, which are the common open-redirect bypasses.
+    """
+    if not next_target:
+        return "/"
+    if any(ch in next_target for ch in ("\r", "\n", "\t", "\\")):
+        return "/"
+    parsed = urlparse(next_target)
+    if parsed.scheme or parsed.netloc:
+        return "/"
+    if not parsed.path.startswith("/") or parsed.path.startswith("//"):
+        return "/"
+    return parsed.path + (f"?{parsed.query}" if parsed.query else "")
 
 
-def create_app() -> FastAPI:
+class AssetStaticFiles(StaticFiles):
+    """Static files with a locked-down policy for user/LLM-generated SVGs."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        if path.lower().endswith(".svg"):
+            # LLM-generated SVG is untrusted. Even if a file contains a
+            # <script> or on* handler, the sandbox CSP prevents execution when
+            # the asset is opened directly.
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+            )
+        return response
+
+
+def _request_settings(request: Request) -> Settings:
+    """Return the app's injected settings, falling back to the global loader."""
+    return getattr(request.app.state, "settings", None) or get_settings()
+
+
+def create_app(settings: Optional[Settings] = None) -> FastAPI:
     """Instantiate and configure FastAPI application."""
-    settings = get_settings()
+    settings = settings or get_settings()
 
     app = FastAPI(
         title="8Gen Arcade Server",
         description="Local AI Game Generator Web Dashboard",
         version="0.1.0",
     )
+    app.state.settings = settings
 
     # CORS: disabled unless origins are explicitly configured. The dashboard is
     # same-origin, so a public deployment must not accept arbitrary origins.
@@ -76,7 +110,7 @@ def create_app() -> FastAPI:
     # matches mounts in registration order, so /static/assets/... must come first.
     assets_dir = settings.output_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/static/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+    app.mount("/static/assets", AssetStaticFiles(directory=str(assets_dir)), name="assets")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # Templates
@@ -90,7 +124,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard_view(request: Request):
-        current_settings = get_settings()
+        current_settings = _request_settings(request)
         return templates.TemplateResponse(
             request=request,
             name="dashboard.html",
@@ -104,8 +138,8 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/api/health")
-    async def health_check():
-        current_settings = get_settings()
+    async def health_check(request: Request):
+        current_settings = _request_settings(request)
         resolved = current_settings.resolved_provider
         return {
             "status": "ok",
@@ -118,7 +152,7 @@ def create_app() -> FastAPI:
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_view(request: Request, next: str = "/"):
-        current_settings = get_settings()
+        current_settings = _request_settings(request)
         if not current_settings.api_token:
             return RedirectResponse(url="/", status_code=302)
         if session_cookie_valid(current_settings.api_token, request.headers.get("cookie")):
@@ -132,7 +166,7 @@ def create_app() -> FastAPI:
     @app.post("/api/auth/login")
     async def login(payload: LoginRequest, request: Request):
         """Exchange the deployment access token for a signed session cookie."""
-        current_settings = get_settings()
+        current_settings = _request_settings(request)
         if not current_settings.api_token:
             raise HTTPException(
                 status_code=400,
@@ -164,11 +198,12 @@ def create_app() -> FastAPI:
 
     @app.get("/games/{game_id}", response_class=HTMLResponse)
     async def game_view(request: Request, game_id: str):
-        current_settings = get_settings()
+        current_settings = _request_settings(request)
         try:
             agent = Agent(current_settings)
-        except ValueError as exc:
-            return HTMLResponse(f"Configuration error: {exc}", status_code=500)
+        except ValueError:
+            logger.exception("Could not initialize the game agent")
+            return HTMLResponse("Configuration error. Check the server logs.", status_code=500)
         game = agent.get_game(game_id)
         if not game:
             return HTMLResponse("Game not found", status_code=404)
@@ -181,49 +216,9 @@ def create_app() -> FastAPI:
             },
         )
 
-    @app.post("/api/settings/key")
-    async def save_api_key(payload: KeyUpdateRequest):
-        """Save Gemini API Key to local .env and runtime environment."""
-        if is_vercel():
-            raise HTTPException(
-                status_code=400,
-                detail="On Vercel deployments, configure GEMINI_API_KEY in Vercel Project Environment Variables.",
-            )
-
-        import os
-        from dotenv import load_dotenv
-
-        env_file = Path("./.env")
-        lines = []
-        if env_file.exists():
-            lines = env_file.read_text().splitlines()
-
-        new_lines = []
-        has_key = False
-        has_provider = False
-        for line in lines:
-            if line.startswith("GEMINI_API_KEY=") or line.startswith("EIGHTGEN_GEMINI_API_KEY="):
-                new_lines.append(f"GEMINI_API_KEY={payload.api_key.strip()}")
-                has_key = True
-            elif line.startswith("EIGHTGEN_PROVIDER=") or line.startswith("PROVIDER="):
-                new_lines.append(f"EIGHTGEN_PROVIDER={payload.provider.strip()}")
-                has_provider = True
-            else:
-                new_lines.append(line)
-
-        if not has_key:
-            new_lines.append(f"GEMINI_API_KEY={payload.api_key.strip()}")
-        if not has_provider:
-            new_lines.append(f"EIGHTGEN_PROVIDER={payload.provider.strip()}")
-
-        env_file.write_text("\n".join(new_lines) + "\n")
-
-        # Update current process environment immediately
-        os.environ["GEMINI_API_KEY"] = payload.api_key.strip()
-        os.environ["EIGHTGEN_PROVIDER"] = payload.provider.strip()
-        load_dotenv(override=True)
-
-        return {"status": "ok", "provider": payload.provider}
+    # API-key editing intentionally lives in the CLI (`8gen config set-key`).
+    # A browser endpoint that rewrites .env is unnecessary attack surface and
+    # was removed in favour of environment variables / CLI configuration.
 
     return app
 

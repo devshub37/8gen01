@@ -28,3 +28,28 @@ def test_validator_empty():
     result = GameValidator.validate("")
     assert result.is_valid is False
     assert "Empty" in result.errors[0]
+
+
+def test_validator_quality_warnings():
+    bare_game = """<!DOCTYPE html>
+<html><body>
+<canvas id="c" width="400" height="300"></canvas>
+<script>
+const c = document.getElementById('c');
+window.addEventListener('keydown', (e) => {
+  localStorage.setItem('k', '1');
+});
+function loop() {
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body></html>"""
+    result = GameValidator.validate(bare_game, check_js=False)
+    assert result.is_valid is True
+    joined = " | ".join(result.warnings).lower()
+    assert "touch/pointer" in joined
+    assert "preventdefault" in joined
+    assert "restart/reset" in joined
+    assert "delta/fixed timestep" in joined
+    assert "localstorage" in joined

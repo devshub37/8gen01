@@ -5,6 +5,7 @@ from eightgen.core.engine.archetypes import (
     build_brick_breaker_game,
     build_cyber_snake_game,
     build_flappy_drone_game,
+    build_platformer_game,
     build_smart_archetype,
 )
 from eightgen.core.engine.references import (
@@ -43,8 +44,36 @@ def test_flappy_drone_archetype():
     html = build_flappy_drone_game("Neon Flappy")
     assert "<!DOCTYPE html>" in html
     assert "Neon Flappy" in html
+    assert "Sound.shoot(" not in html
     val = GameValidator.validate(html)
     assert val.is_valid, f"Validation errors: {val.errors}"
+
+
+def test_platformer_archetype():
+    html = build_platformer_game("Celeste Spire")
+    assert "<!DOCTYPE html>" in html
+    assert "Celeste Spire" in html
+    assert "COYOTE" in html and "JUMP_BUFFER" in html
+    val = GameValidator.validate(html)
+    assert val.is_valid, f"Validation errors: {val.errors}"
+    assert not val.warnings, f"Unexpected quality warnings: {val.warnings}"
+
+
+def test_all_archetypes_have_safe_storage_and_timestep():
+    builders = [
+        build_space_shooter_game("Test Shooter"),
+        build_brick_breaker_game("Test Breaker"),
+        build_cyber_snake_game("Test Snake"),
+        build_flappy_drone_game("Test Drone"),
+        build_platformer_game("Test Platformer"),
+    ]
+    for html in builders:
+        val = GameValidator.validate(html)
+        assert val.is_valid, f"Validation errors: {val.errors}"
+        assert "Sound.shoot(" not in html
+        assert not any("timestep" in w.lower() or "touch" in w.lower() or "localstorage" in w.lower() for w in val.warnings), (
+            f"Unexpected physics/controls warning: {val.warnings}"
+        )
 
 
 def test_smart_archetype_dispatcher():
@@ -62,6 +91,11 @@ def test_smart_archetype_dispatcher():
     drone_html = build_smart_archetype("Flappy drone flying through electric obstacles")
     assert "Drone" in drone_html or "Odyssey" in drone_html
     assert GameValidator.validate(drone_html).is_valid
+
+    # Platformer matching
+    plat_html = build_smart_archetype("Make a celeste style platformer with wall jump and spikes")
+    assert "Neon Leap" in plat_html
+    assert GameValidator.validate(plat_html).is_valid
 
     # Default shooter
     shooter_html = build_smart_archetype("Alien galaxy invader defense")

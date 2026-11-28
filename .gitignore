@@ -25,6 +25,8 @@ htmlcov/
 games/*.html
 games/8gen.db
 games/assets/
+games/.cache/
+games/failed_drafts/
 
 # macOS & Deployment
 .DS_Store

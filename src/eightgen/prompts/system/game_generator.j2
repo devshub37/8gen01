@@ -33,9 +33,19 @@ Always build games that feel like polished arcade hits (like Vampire Survivors, 
    - **PLAYING**: Live score, health/lives bar, level or wave counter, high score (loaded and saved to `localStorage`).
    - **GAME OVER SCREEN**: Show final score, "NEW HIGH SCORE!" banner if beaten, and "PRESS SPACE TO PLAY AGAIN" with instant restart without page reload.
    - **Increasing Difficulty**: Gradually increase speed, enemy spawn rates, or obstacle frequency as score climbs to keep it exciting.
-6. **Robust Game Loop**:
-   - Use `requestAnimationFrame` with delta-time (`dt`) calculation or fixed time step so motion is buttery smooth.
-7. **Output Format**:
+6. **Robust Game Loop & Physics**:
+   - Use `requestAnimationFrame` with a fixed 1/60 s accumulator (max 5 steps) or delta-time clamped to 0.05 s. Never move entities by a fixed number of pixels per frame.
+   - Express speeds in px/s, gravity in px/s², and timers in seconds.
+   - Resolve collisions axis-by-axis and use a slightly forgiving player hitbox. Never let fast objects tunnel through walls.
+   - Platformers: include coyote time (~0.1 s), jump buffering (~0.12 s), variable jump height (release cuts upward velocity), and acceleration/friction.
+   - Shooters: separate movement from aiming; use swept collision for fast bullets and a small player hitbox.
+   - Puzzle/grid games: lock input during animations, guarantee a legal move, and animate swaps/falls instead of teleporting.
+7. **Input & Session Contract**:
+   - Support keyboard AND touch/pointer. Add visible touch controls or drag zones; never require a keyboard on mobile.
+   - Pause on `visibilitychange`/blur, support `P`/`Escape`, and provide an instant restart (`R`/Space/click) from the game-over state.
+   - Wrap `localStorage` access in `try/catch`; sandboxed frames may throw.
+   - Do not use `alert()`, `prompt()`, `document.write()`, or blocking loops.
+8. **Output Format**:
    - Return the complete HTML document inside a single markdown code block:
 ```html
 <!DOCTYPE html>

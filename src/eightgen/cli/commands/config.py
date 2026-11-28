@@ -3,7 +3,6 @@
 import asyncio
 from pathlib import Path
 import click
-from rich.panel import Panel
 from rich.table import Table
 from eightgen.cli.display import console, print_banner, print_status, print_error, print_success
 from eightgen.config.loader import get_settings

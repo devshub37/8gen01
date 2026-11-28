@@ -84,8 +84,14 @@ def test_vercel_mode_routes_and_paths(monkeypatch, tmp_path):
     health = client.get("/api/health").json()
     assert health["vercel"] is True
 
+    # The legacy browser-side .env key writer endpoint was intentionally removed.
     key_res = client.post("/api/settings/key", json={"api_key": "test", "provider": "gemini"})
-    assert key_res.status_code == 400
+    assert key_res.status_code == 404
+
+    # Platformer archetype route
+    plat_res = client.get("/api/games/archetype/platformer")
+    assert plat_res.status_code == 200
+    assert "Neon Leap" in plat_res.text
 
     # Generate, remove disk HTML, verify download falls back cleanly to SQLite HTML
     gen_res = client.post(

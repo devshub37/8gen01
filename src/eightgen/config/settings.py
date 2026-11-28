@@ -109,6 +109,17 @@ class Settings(BaseSettings):
         default=False,
         description="Run a headless browser smoke test on generated games (requires playwright)",
     )
+    learn_from_web: bool = Field(
+        default=True,
+        description=(
+            "Research similar games on the internet (Wikipedia/GitHub) and cache "
+            "their controls, physics, and mechanics before generating"
+        ),
+    )
+    web_learn_timeout: float = Field(
+        default=3.0,
+        description="Timeout in seconds for internet game research requests",
+    )
 
     # Storage Settings
     output_dir: Path = Field(
@@ -141,6 +152,13 @@ class Settings(BaseSettings):
     rate_limit: int = Field(
         default=30,
         description="Max mutating API requests allowed per client per minute (0 disables)",
+    )
+    trust_proxy: bool = Field(
+        default=False,
+        description=(
+            "Trust X-Forwarded-For for rate-limit keys. Enable only when the app "
+            "is behind a reverse proxy that overwrites the header."
+        ),
     )
 
     # CLI & UI

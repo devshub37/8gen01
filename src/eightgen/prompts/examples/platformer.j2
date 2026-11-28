@@ -1,6 +1,6 @@
 Platformer architecture guidance:
-- Gravity acceleration (vy += gravity), jump impulse (vy = -jumpForce).
-- Horizontal velocity with damping/friction.
-- Tile/Platform rectangular collision detection (floor landing, head bonk, wall collision).
-- Camera scroll offset or single-screen stage format.
-- Visual juice: jump squish, landing particles, coin collect spark.
+- Fixed 1/60 s timestep (accumulator <= 5 steps, frame delta clamped to 0.05 s) with speeds in px/s and gravity in px/s^2.
+- Responsive jump physics: coyote time (~0.10 s), jump buffer (~0.12 s), variable jump height on release, and ground/air acceleration + friction.
+- Axis-by-axis AABB collision (move X then resolve, move Y then resolve) with a ~80% forgiving player hitbox.
+- Smooth dead-zone camera, keyboard (A/D/Arrows + Space/W) + visible mobile touch controls, preventDefault() on navigation keys, and pause on P/Escape/blur.
+- Visual juice: jump squash/stretch, landing dust, coyote-safe checkpoints, coin sparks, and synthesized jump/coin/hit audio.

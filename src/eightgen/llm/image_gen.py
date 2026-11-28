@@ -43,8 +43,88 @@ def _parse_size(size: str) -> Tuple[int, int]:
         return 1024, 1024
 
 
+_DANGEROUS_SVG_TAGS = (
+    "script",
+    "foreignObject",
+    "iframe",
+    "object",
+    "embed",
+    "audio",
+    "video",
+)
+
+_SVG_EVENT_ATTR = re.compile(
+    r"\son[a-z0-9_-]+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)",
+    re.IGNORECASE,
+)
+_SVG_URL_ATTR = re.compile(
+    r"\b(?:href|xlink:href)\s*=\s*(?:\"|')\s*"
+    r"(?:javascript:|vbscript:|data:text/html|//)[^\"']*(?:\"|')",
+    re.IGNORECASE,
+)
+_SVG_BAD_CSS = re.compile(
+    r"@import|expression\s*\(|url\s*\(\s*['\"]?\s*"
+    r"(?:javascript:|vbscript:|data:text/html)",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_svg(svg: str) -> str:
+    """Remove scriptable content from LLM-generated SVG.
+
+    SVG is an active document when opened directly, so untrusted model output
+    must not be served as-is. This is intentionally conservative: drop active
+    containers, inline event handlers, javascript: URLs, and dangerous CSS.
+    """
+    cleaned = re.sub(r"<!DOCTYPE[\s\S]*?>", "", svg, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<!ENTITY[\s\S]*?>", "", cleaned, flags=re.IGNORECASE)
+
+    for tag in _DANGEROUS_SVG_TAGS:
+        cleaned = re.sub(
+            rf"<{tag}\b[\s\S]*?</{tag}\s*>", "", cleaned, flags=re.IGNORECASE
+        )
+        cleaned = re.sub(rf"<{tag}\b[^>]*/?>", "", cleaned, flags=re.IGNORECASE)
+
+    cleaned = _SVG_EVENT_ATTR.sub("", cleaned)
+    cleaned = _SVG_URL_ATTR.sub("", cleaned)
+
+    def _clean_style_block(match: re.Match) -> str:
+        css = match.group(1)
+        return "" if _SVG_BAD_CSS.search(css) else match.group(0)
+
+    def _clean_style_attr(match: re.Match) -> str:
+        value = match.group(2)
+        return "" if _SVG_BAD_CSS.search(value) else match.group(0)
+
+    cleaned = re.sub(
+        r"<style\b[^>]*>([\s\S]*?)</style\s*>",
+        _clean_style_block,
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"style\s*=\s*(\"|')([^\"']*)(\1)",
+        _clean_style_attr,
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    # SVG animation can target an event attribute; drop those animations.
+    cleaned = re.sub(
+        r"<(?:set|animate)\b[^>]*attributeName\s*=\s*(?:\"|')\s*on[a-z0-9_-]+[^>]*/?>",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+
+    if re.search(r"<script\b", cleaned, re.IGNORECASE):
+        raise ImageGenerationError("Generated SVG contained script content that could not be sanitized.")
+    if not cleaned.strip().lower().startswith("<svg"):
+        raise ImageGenerationError("Generated SVG was empty after sanitization.")
+    return cleaned.strip()
+
+
 def _extract_svg(raw_text: str, width: int, height: int) -> str:
-    """Extract and normalize standalone SVG markup from LLM output."""
+    """Extract, normalize, and sanitize standalone SVG markup from LLM output."""
     text = raw_text.strip()
     fence_match = re.search(r"```(?:svg|xml|html)?\s*([\s\S]*?)```", text, re.IGNORECASE)
     if fence_match:
@@ -54,7 +134,7 @@ def _extract_svg(raw_text: str, width: int, height: int) -> str:
     if not svg_match:
         raise ImageGenerationError("Generated SVG output was incomplete or missing <svg> tags.")
 
-    svg = svg_match.group(0).strip()
+    svg = _sanitize_svg(svg_match.group(0))
     if "xmlns=" not in svg[:200]:
         svg = svg.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"', 1)
     if "viewBox=" not in svg[:200]:
@@ -253,6 +333,9 @@ class ImageGenerator:
         generations can never collide (timestamp-only names could overwrite
         each other within the same second).
         """
+        if mime_type == "image/svg+xml" or ext.lower() == "svg":
+            # Defense in depth: sanitize even if a caller supplied raw SVG.
+            raw_bytes = _sanitize_svg(raw_bytes.decode("utf-8", errors="replace")).encode("utf-8")
         slug = re.sub(r"[^\w\s-]", "", prompt.lower())
         slug = re.sub(r"[-\s]+", "-", slug).strip("-_")[:30] or "asset"
         filename = f"{slug}-{uuid4().hex[:16]}.{ext}"

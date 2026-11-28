@@ -1,5 +1,6 @@
 """Top-level Agent orchestrator for 8Gen."""
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,10 +51,14 @@ class Agent:
         """Check LLM provider connectivity and available models."""
         is_up = await self.provider.is_healthy()
         models = await self.provider.list_models() if is_up else []
+        resolved = self.settings.resolved_provider
         return {
-            "provider": self.settings.resolved_provider,
+            "provider": resolved,
             "connected": is_up,
-            "ollama_connected": is_up,
+            "provider_connected": is_up,
+            # Kept for older callers: only true when Ollama is the active engine.
+            "ollama_connected": is_up and resolved == "ollama",
+            "ollama_url": self.settings.ollama_url,
             "configured_model": getattr(self.provider, "model", self.settings.model),
             "available_models": models,
             "storage_path": str(self.settings.output_dir.resolve()),
@@ -70,6 +75,8 @@ class Agent:
     ) -> Game:
         """Generate a brand new game from user prompt or simple game reference."""
         ref_spec = get_reference_spec(game_reference) if game_reference else None
+        if game_reference and ref_spec is None:
+            raise ValueError(f"Unknown game reference '{game_reference}'.")
         effective_prompt = (prompt or "").strip() or (ref_spec.prompt if ref_spec else "")
         effective_category = category or (ref_spec.category if ref_spec else None)
         logger.info(
@@ -90,7 +97,9 @@ class Agent:
         slug = slugify(extracted_title)
         short_id = uuid.uuid4().hex[:8]
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}_{slug}.html"
+        # The ID makes the name unique even when two games are generated in the
+        # same second with the same inferred title.
+        filename = f"{timestamp}_{short_id}_{slug}.html"
         file_path = self.settings.output_dir / filename
 
         # Create version & game record
@@ -120,7 +129,7 @@ class Agent:
             versions=[version],
         )
 
-        saved_game = self.repo.save(game)
+        saved_game = await asyncio.to_thread(self.repo.save, game)
         logger.info(f"Game saved successfully: {saved_game.file_path}")
 
         # Auto-launch browser if requested
@@ -151,11 +160,15 @@ class Agent:
         logger.info(f"Refining game '{game.title}' (v{game.current_version}) with: '{instruction}'...")
 
         existing_html = game.latest_html
+        design_brief = self.prompt_builder.design_brief(
+            f"{game.title} {game.description}", game.category
+        )
         refined_html = await self.refiner.refine(
             game_id=game.id,
             existing_html=existing_html,
             instruction=instruction,
             stream_callback=stream_callback,
+            design_brief=design_brief,
         )
 
         active_model = getattr(self.provider, "model", self.settings.model)
@@ -167,7 +180,7 @@ class Agent:
             change_summary=instruction,
         )
 
-        updated_game = self.repo.add_version(game.id, new_version)
+        updated_game = await asyncio.to_thread(self.repo.add_version, game.id, new_version)
         if not updated_game:
             raise RuntimeError("Failed to persist updated game version.")
 
@@ -186,8 +199,12 @@ class Agent:
         return self.repo.get_by_id(game_id)
 
     def list_games(self, limit: int = 50, tag: Optional[str] = None) -> List[Game]:
-        """List all generated games."""
+        """List all generated games with full version history."""
         return self.repo.list_all(limit=limit, tag=tag)
+
+    def list_game_summaries(self, limit: int = 50, tag: Optional[str] = None) -> List[dict]:
+        """List lightweight gallery metadata (no HTML payloads)."""
+        return self.repo.list_summaries(limit=limit, tag=tag)
 
     def delete_game(self, game_id: str) -> bool:
         """Delete game by ID."""

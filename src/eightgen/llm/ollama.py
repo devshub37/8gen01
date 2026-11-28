@@ -1,7 +1,7 @@
 """Ollama LLM Provider implementation."""
 
 import json
-from typing import AsyncGenerator, Dict, List, Optional, Any
+from typing import AsyncGenerator, Dict, List, Any
 import httpx
 
 from eightgen.llm.base import LLMMessage, LLMProvider, LLMResponse

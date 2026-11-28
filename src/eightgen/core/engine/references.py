@@ -1,5 +1,6 @@
 """Simple, runnable reference game catalog and minimal HTML5 builders."""
 
+import html
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
@@ -19,6 +20,8 @@ class ReferenceGameSpec:
 
 def _wrap_simple_game(title: str, controls_hint: str, body_html: str, extra_css: str, script_js: str) -> str:
     """Wrap a simple game inside a clean, single-file responsive HTML5 shell."""
+    title = html.escape(str(title or "Arcade Classic"), quote=True)
+    controls_hint = html.escape(str(controls_hint or ""), quote=True)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -102,23 +105,30 @@ def _build_simple_pong() -> str:
         script_js="""
 const c = document.getElementById('c'), ctx = c.getContext('2d'), scoreEl = document.getElementById('score');
 const keys = {};
-let pY = 160, cpuY = 160, bX = 320, bY = 200, bVX = 4, bVY = 3, pScore = 0, cScore = 0, over = false;
+let pY = 160, cpuY = 160, bX = 320, bY = 200, bVX = 260, bVY = 180, pScore = 0, cScore = 0, over = false, lastTs = 0;
 window.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ' && over) resetGame(); });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
-c.addEventListener('mousemove', e => { const r = c.getBoundingClientRect(); pY = ((e.clientY - r.top) / r.height) * c.height - 40; });
-function resetBall(dir = 1) { bX = 320; bY = 200; bVX = 4 * dir; bVY = (Math.random() > 0.5 ? 3 : -3); }
+function movePaddle(clientY) { const r = c.getBoundingClientRect(); pY = Math.max(0, Math.min(320, ((clientY - r.top) / r.height) * c.height - 40)); }
+c.addEventListener('mousemove', e => movePaddle(e.clientY));
+c.addEventListener('touchstart', e => { e.preventDefault(); if (over) resetGame(); else if (e.touches[0]) movePaddle(e.touches[0].clientY); }, { passive: false });
+c.addEventListener('touchmove', e => { e.preventDefault(); if (e.touches[0]) movePaddle(e.touches[0].clientY); }, { passive: false });
+function resetBall(dir = 1) { bX = 320; bY = 200; bVX = 260 * dir; bVY = (Math.random() > 0.5 ? 190 : -190); }
 function resetGame() { pScore = 0; cScore = 0; pY = 160; cpuY = 160; over = false; scoreEl.textContent = '0 - 0'; resetBall(1); }
-function loop() {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (!over) {
-    if (keys['ArrowUp'] || keys['w'] || keys['W']) pY -= 6;
-    if (keys['ArrowDown'] || keys['s'] || keys['S']) pY += 6;
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) pY -= 380 * dt;
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) pY += 380 * dt;
     pY = Math.max(0, Math.min(320, pY));
-    if (cpuY + 40 < bY - 8) cpuY += 3.5; else if (cpuY + 40 > bY + 8) cpuY -= 3.5;
+    if (cpuY + 40 < bY - 8) cpuY += 230 * dt; else if (cpuY + 40 > bY + 8) cpuY -= 230 * dt;
     cpuY = Math.max(0, Math.min(320, cpuY));
-    bX += bVX; bY += bVY;
-    if (bY < 8 || bY > 392) bVY *= -1;
-    if (bX < 28 && bY > pY && bY < pY + 80) { bVX = Math.abs(bVX); bVY += (bY - (pY + 40)) * 0.08; }
-    if (bX > 612 && bY > cpuY && bY < cpuY + 80) { bVX = -Math.abs(bVX); }
+    bX += bVX * dt; bY += bVY * dt;
+    if (bY < 8) { bY = 8; bVY = Math.abs(bVY); }
+    if (bY > 392) { bY = 392; bVY = -Math.abs(bVY); }
+    if (bX < 28 && bX > 14 && bY > pY && bY < pY + 80) { bX = 28; bVX = Math.min(540, Math.abs(bVX) * 1.04); bVY += (bY - (pY + 40)) * 4.5; }
+    if (bX > 612 && bX < 626 && bY > cpuY && bY < cpuY + 80) { bX = 612; bVX = -Math.min(540, Math.abs(bVX) * 1.04); }
     if (bX < 0) { cScore++; resetBall(1); }
     if (bX > 640) { pScore++; resetBall(-1); }
     scoreEl.textContent = pScore + ' - ' + cScore;
@@ -137,7 +147,7 @@ function loop() {
   }
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
 """,
     )
 
@@ -151,34 +161,55 @@ def _build_simple_snake() -> str:
         script_js="""
 const c = document.getElementById('c'), ctx = c.getContext('2d'), scoreEl = document.getElementById('score');
 const GRID = 20, CELLS = 20;
-let snake, dir, nextDir, food, score, over;
+let snake, dir, turnQueue, food, score, over, accum = 0, lastTs = 0, tx = null, ty = null;
+function queueTurn(dx, dy) {
+  const last = turnQueue.length ? turnQueue[turnQueue.length - 1] : dir;
+  if ((last.x === -dx && last.y === -dy) || (last.x === dx && last.y === dy)) return;
+  if (turnQueue.length < 2) turnQueue.push({ x: dx, y: dy });
+}
 function spawnFood() {
   do { food = { x: Math.floor(Math.random() * CELLS), y: Math.floor(Math.random() * CELLS) }; }
   while (snake.some(s => s.x === food.x && s.y === food.y));
 }
 function resetGame() {
   snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
-  dir = { x: 1, y: 0 }; nextDir = { x: 1, y: 0 }; score = 0; over = false;
+  dir = { x: 1, y: 0 }; turnQueue = []; score = 0; over = false; accum = 0;
   scoreEl.textContent = '0'; spawnFood();
 }
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if ((k === 'arrowup' || k === 'w') && dir.y === 0) nextDir = { x: 0, y: -1 };
-  if ((k === 'arrowdown' || k === 's') && dir.y === 0) nextDir = { x: 0, y: 1 };
-  if ((k === 'arrowleft' || k === 'a') && dir.x === 0) nextDir = { x: -1, y: 0 };
-  if ((k === 'arrowright' || k === 'd') && dir.x === 0) nextDir = { x: 1, y: 0 };
+  if (k === 'arrowup' || k === 'w') queueTurn(0, -1);
+  if (k === 'arrowdown' || k === 's') queueTurn(0, 1);
+  if (k === 'arrowleft' || k === 'a') queueTurn(-1, 0);
+  if (k === 'arrowright' || k === 'd') queueTurn(1, 0);
   if (e.key === ' ' && over) resetGame();
 });
+c.addEventListener('touchstart', e => { if (over) resetGame(); else if (e.touches[0]) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; } }, { passive: true });
+c.addEventListener('touchmove', e => {
+  if (tx === null || !e.touches[0]) return;
+  const dx = e.touches[0].clientX - tx, dy = e.touches[0].clientY - ty;
+  if (Math.hypot(dx, dy) < 16) return;
+  if (Math.abs(dx) > Math.abs(dy)) queueTurn(dx > 0 ? 1 : -1, 0); else queueTurn(0, dy > 0 ? 1 : -1);
+  tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+}, { passive: true });
 resetGame();
-setInterval(() => {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (!over) {
-    dir = nextDir;
-    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
-    if (head.x < 0 || head.x >= CELLS || head.y < 0 || head.y >= CELLS || snake.some(s => s.x === head.x && s.y === head.y)) {
-      over = true;
-    } else {
+    accum += dt;
+    while (accum >= 0.12) {
+      accum -= 0.12;
+      if (turnQueue.length) dir = turnQueue.shift();
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      const willEat = head.x === food.x && head.y === food.y;
+      const body = willEat ? snake : snake.slice(0, -1);
+      if (head.x < 0 || head.x >= CELLS || head.y < 0 || head.y >= CELLS || body.some(s => s.x === head.x && s.y === head.y)) {
+        over = true; break;
+      }
       snake.unshift(head);
-      if (head.x === food.x && head.y === food.y) { score++; scoreEl.textContent = score; spawnFood(); }
+      if (willEat) { score++; scoreEl.textContent = score; spawnFood(); }
       else snake.pop();
     }
   }
@@ -194,7 +225,9 @@ setInterval(() => {
     ctx.fillText('Game Over', 200, 190);
     ctx.font = '15px sans-serif'; ctx.fillText('Press Space or Restart', 200, 222);
   }
-}, 130);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 """,
     )
 
@@ -273,31 +306,34 @@ def _build_simple_flappy() -> str:
         extra_css="",
         script_js="""
 const c = document.getElementById('c'), ctx = c.getContext('2d'), scoreEl = document.getElementById('score');
-let birdY, vel, pipes, score, over, started;
-function resetGame() { birdY = 220; vel = 0; pipes = []; score = 0; over = false; started = false; scoreEl.textContent = '0'; }
+let birdY, vel, pipes, score, over, started, spawnTimer, lastTs = 0;
+function resetGame() { birdY = 220; vel = 0; pipes = []; score = 0; over = false; started = false; spawnTimer = 0.8; scoreEl.textContent = '0'; }
 function flap() {
   if (over) { resetGame(); return; }
-  started = true; vel = -6.5;
+  started = true; vel = -390;
 }
 window.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'ArrowUp') flap(); });
-c.addEventListener('mousedown', flap);
+c.addEventListener('pointerdown', e => { e.preventDefault(); flap(); });
 resetGame();
-let frame = 0;
-function loop() {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (started && !over) {
-    frame++;
-    vel += 0.35; birdY += vel;
-    if (frame % 95 === 0) {
+    vel += 1260 * dt; birdY += vel * dt;
+    spawnTimer += dt;
+    if (spawnTimer >= 1.55) {
+      spawnTimer = 0;
       const gapY = 90 + Math.random() * 200;
       pipes.push({ x: 420, gapY, passed: false });
     }
     pipes.forEach(p => {
-      p.x -= 2.8;
+      p.x -= 170 * dt;
       if (!p.passed && p.x + 48 < 90) { p.passed = true; score++; scoreEl.textContent = score; }
-      if (90 + 14 > p.x && 90 - 14 < p.x + 48 && (birdY - 14 < p.gapY || birdY + 14 > p.gapY + 130)) over = true;
+      if (90 + 11 > p.x && 90 - 11 < p.x + 48 && (birdY - 11 < p.gapY || birdY + 11 > p.gapY + 130)) over = true;
     });
     pipes = pipes.filter(p => p.x > -60);
-    if (birdY < 14 || birdY > 466) over = true;
+    if (birdY < 12 || birdY > 468) over = true;
   }
   ctx.clearRect(0, 0, 420, 480);
   ctx.fillStyle = '#22c55e';
@@ -314,7 +350,7 @@ function loop() {
   }
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
 """,
     )
 
@@ -329,33 +365,40 @@ def _build_simple_breakout() -> str:
 const c = document.getElementById('c'), ctx = c.getContext('2d');
 const scoreEl = document.getElementById('score'), livesEl = document.getElementById('lives');
 const keys = {};
-let pX, bX, bY, bVX, bVY, bricks, score, lives, state;
+let pX, bX, bY, bVX, bVY, bricks, score, lives, state, lastTs = 0;
 function makeBricks() {
   const arr = [], colors = ['#ef4444','#f97316','#eab308','#22c55e'];
   for (let r = 0; r < 4; r++) for (let col = 0; col < 8; col++)
     arr.push({ x: 24 + col * 60, y: 40 + r * 26, w: 52, h: 18, color: colors[r], alive: true });
   return arr;
 }
-function resetBall() { bX = 260; bY = 320; bVX = 3.5; bVY = -3.5; }
+function resetBall() { bX = 260; bY = 320; bVX = 210; bVY = -220; }
 function resetGame() { pX = 215; bricks = makeBricks(); score = 0; lives = 3; state = 'PLAY'; scoreEl.textContent = '0'; livesEl.textContent = '3'; resetBall(); }
 window.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ' && state !== 'PLAY') resetGame(); });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
-c.addEventListener('mousemove', e => { const r = c.getBoundingClientRect(); pX = ((e.clientX - r.left) / r.width) * c.width - 45; });
+function movePaddle(clientX) { const r = c.getBoundingClientRect(); pX = Math.max(0, Math.min(430, ((clientX - r.left) / r.width) * c.width - 45)); }
+c.addEventListener('mousemove', e => movePaddle(e.clientX));
+c.addEventListener('touchstart', e => { e.preventDefault(); if (state !== 'PLAY') resetGame(); else if (e.touches[0]) movePaddle(e.touches[0].clientX); }, { passive: false });
+c.addEventListener('touchmove', e => { e.preventDefault(); if (e.touches[0]) movePaddle(e.touches[0].clientX); }, { passive: false });
 resetGame();
-function loop() {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (state === 'PLAY') {
-    if (keys['ArrowLeft'] || keys['a']) pX -= 6;
-    if (keys['ArrowRight'] || keys['d']) pX += 6;
+    if (keys['ArrowLeft'] || keys['a']) pX -= 360 * dt;
+    if (keys['ArrowRight'] || keys['d']) pX += 360 * dt;
     pX = Math.max(0, Math.min(430, pX));
-    bX += bVX; bY += bVY;
-    if (bX < 8 || bX > 512) bVX *= -1;
-    if (bY < 8) bVY *= -1;
-    if (bY > 362 && bY < 378 && bX > pX && bX < pX + 90) { bVY = -Math.abs(bVY); bVX = (bX - (pX + 45)) * 0.12; }
-    bricks.forEach(br => {
-      if (br.alive && bX > br.x && bX < br.x + br.w && bY > br.y && bY < br.y + br.h) {
-        br.alive = false; bVY *= -1; score += 10; scoreEl.textContent = score;
+    bX += bVX * dt; bY += bVY * dt;
+    if (bX < 8) { bX = 8; bVX = Math.abs(bVX); }
+    if (bX > 512) { bX = 512; bVX = -Math.abs(bVX); }
+    if (bY < 8) { bY = 8; bVY = Math.abs(bVY); }
+    if (bY > 362 && bY < 378 && bX > pX && bX < pX + 90 && bVY > 0) { bY = 362; bVY = -Math.abs(bVY); bVX = (bX - (pX + 45)) * 7.2; }
+    for (const br of bricks) {
+      if (br.alive && bX + 7 > br.x && bX - 7 < br.x + br.w && bY + 7 > br.y && bY - 7 < br.y + br.h) {
+        br.alive = false; bVY *= -1; score += 10; scoreEl.textContent = score; break;
       }
-    });
+    }
     if (bricks.every(b => !b.alive)) state = 'WIN';
     if (bY > 400) {
       lives--; livesEl.textContent = lives;
@@ -374,7 +417,7 @@ function loop() {
   }
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
 """,
     )
 
@@ -388,33 +431,40 @@ def _build_simple_space_invaders() -> str:
         script_js="""
 const c = document.getElementById('c'), ctx = c.getContext('2d'), scoreEl = document.getElementById('score');
 const keys = {};
-let shipX, bullets, aliens, alienDir, score, state;
+let shipX, bullets, aliens, alienDir, score, state, shotCooldown = 0, lastTs = 0;
 function resetGame() {
-  shipX = 240; bullets = []; alienDir = 1.5; score = 0; state = 'PLAY'; scoreEl.textContent = '0';
+  shipX = 240; bullets = []; alienDir = 90; score = 0; state = 'PLAY'; shotCooldown = 0; scoreEl.textContent = '0';
   aliens = [];
   for (let r = 0; r < 3; r++) for (let col = 0; col < 8; col++)
     aliens.push({ x: 50 + col * 52, y: 40 + r * 36, w: 32, h: 22, alive: true });
 }
+function fire() {
+  if (state !== 'PLAY') { resetGame(); return; }
+  if (shotCooldown <= 0 && bullets.length < 4) { bullets.push({ x: shipX + 18, y: 374 }); shotCooldown = 0.18; }
+}
 window.addEventListener('keydown', e => {
   keys[e.key] = true;
-  if (e.key === ' ') {
-    if (state !== 'PLAY') resetGame();
-    else if (bullets.length < 3) bullets.push({ x: shipX + 18, y: 374 });
-  }
+  if (e.key === ' ') fire();
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
+c.addEventListener('pointerdown', e => { e.preventDefault(); const r = c.getBoundingClientRect(); shipX = Math.max(10, Math.min(470, ((e.clientX - r.left) / r.width) * c.width - 20)); fire(); });
+c.addEventListener('pointermove', e => { if (e.buttons) { const r = c.getBoundingClientRect(); shipX = Math.max(10, Math.min(470, ((e.clientX - r.left) / r.width) * c.width - 20)); } });
 resetGame();
-function loop() {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (state === 'PLAY') {
-    if (keys['ArrowLeft'] || keys['a']) shipX -= 5;
-    if (keys['ArrowRight'] || keys['d']) shipX += 5;
+    shotCooldown = Math.max(0, shotCooldown - dt);
+    if (keys['ArrowLeft'] || keys['a']) shipX -= 300 * dt;
+    if (keys['ArrowRight'] || keys['d']) shipX += 300 * dt;
     shipX = Math.max(10, Math.min(470, shipX));
-    bullets.forEach(b => b.y -= 7);
+    bullets.forEach(b => b.y -= 440 * dt);
     bullets = bullets.filter(b => b.y > 0);
     let hitEdge = false;
     aliens.forEach(a => {
       if (!a.alive) return;
-      a.x += alienDir;
+      a.x += alienDir * dt;
       if (a.x < 10 || a.x + a.w > 510) hitEdge = true;
       if (a.y + a.h >= 375) state = 'OVER';
       bullets.forEach(b => {
@@ -438,7 +488,7 @@ function loop() {
   }
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
 """,
     )
 
@@ -505,24 +555,29 @@ def _build_simple_dino_runner() -> str:
         script_js="""
 const c = document.getElementById('c'), ctx = c.getContext('2d'), scoreEl = document.getElementById('score');
 const GROUND = 240;
-let dinoY, velY, obstacles, score, timer, over;
-function resetGame() { dinoY = GROUND - 40; velY = 0; obstacles = []; score = 0; timer = 0; over = false; scoreEl.textContent = '0'; }
+let dinoY, velY, obstacles, score, scoreTimer, spawnTimer, over, lastTs = 0;
+function resetGame() { dinoY = GROUND - 40; velY = 0; obstacles = []; score = 0; scoreTimer = 0; spawnTimer = 0.8; over = false; scoreEl.textContent = '0'; }
 function jump() {
   if (over) { resetGame(); return; }
-  if (dinoY >= GROUND - 40) velY = -11.5;
+  if (dinoY >= GROUND - 40) velY = -660;
 }
 window.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'ArrowUp') jump(); });
-c.addEventListener('mousedown', jump);
+c.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
 resetGame();
-function loop() {
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000);
+  lastTs = ts;
   if (!over) {
-    timer++;
-    if (timer % 6 === 0) { score++; scoreEl.textContent = score; }
-    velY += 0.6; dinoY = Math.min(GROUND - 40, dinoY + velY);
-    if (timer % 85 === 0) obstacles.push({ x: 600, w: 20 + Math.random() * 14, h: 32 + Math.random() * 18 });
+    scoreTimer += dt;
+    if (scoreTimer >= 0.1) { scoreTimer -= 0.1; score++; scoreEl.textContent = score; }
+    velY += 1950 * dt; dinoY = Math.min(GROUND - 40, dinoY + velY * dt);
+    spawnTimer += dt;
+    if (spawnTimer >= 1.35) { spawnTimer = 0; obstacles.push({ x: 600, w: 20 + Math.random() * 14, h: 32 + Math.random() * 18 }); }
+    const speed = Math.min(520, 310 + score * 0.4);
     obstacles.forEach(o => {
-      o.x -= 5.2;
-      if (70 + 28 > o.x && 70 < o.x + o.w && dinoY + 40 > GROUND - o.h) over = true;
+      o.x -= speed * dt;
+      if (70 + 24 > o.x && 74 < o.x + o.w && dinoY + 38 > GROUND - o.h) over = true;
     });
     obstacles = obstacles.filter(o => o.x > -40);
   }
@@ -538,7 +593,7 @@ function loop() {
   }
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
 """,
     )
 

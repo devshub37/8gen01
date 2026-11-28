@@ -4,6 +4,7 @@ from typing import Callable, Optional
 from eightgen.config.settings import Settings
 from eightgen.core.engine.archetypes import build_smart_archetype
 from eightgen.core.engine.references import build_simple_reference_game
+from eightgen.core.engine.web_learner import learn_from_similar_games
 from eightgen.core.extractor import HTMLExtractor
 from eightgen.core.validator import GameValidator, ValidationResult
 from eightgen.llm.base import LLMProvider
@@ -62,9 +63,35 @@ class GameGenerator:
             await self.plugins.trigger_post_generate(prompt, html)
             return html
 
+        learned_context = ""
+        if self.settings.learn_from_web:
+            try:
+                learned = await learn_from_similar_games(
+                    prompt=prompt,
+                    category=category,
+                    game_reference=game_reference,
+                    cache_dir=self.settings.output_dir / ".cache",
+                    timeout=self.settings.web_learn_timeout,
+                )
+                learned_context = learned.render_brief()
+                if learned_context:
+                    logger.info(
+                        "Loaded internet game research for '%s' (%s).",
+                        learned.query,
+                        "cache" if learned.from_cache else "live",
+                    )
+            except Exception as exc:
+                logger.debug("Skipping internet game research: %s", exc)
+
         base_messages = self.prompt_builder.build_generate_messages(
-            prompt, category, game_reference=game_reference
+            prompt,
+            category,
+            game_reference=game_reference,
+            learned_context=learned_context,
         )
+        design_brief = self.prompt_builder.design_brief(prompt, category, game_reference)
+        if learned_context:
+            design_brief = f"{design_brief.rstrip()}\n\n{learned_context.strip()}"
         messages = base_messages
         max_attempts = max(1, self.settings.max_retries)
         last_errors = []
@@ -88,7 +115,9 @@ class GameGenerator:
 
             if attempt > 1 and should_fix_previous:
                 # Self-healing debug attempt
-                messages = self.prompt_builder.build_fix_messages(raw_output, last_errors)
+                messages = self.prompt_builder.build_fix_messages(
+                    raw_output, last_errors, design_brief=design_brief
+                )
             else:
                 messages = base_messages
 
@@ -128,8 +157,14 @@ class GameGenerator:
                 should_fix_previous = True
                 continue
 
-            # Validate HTML structure and requirements
-            val_result: ValidationResult = GameValidator.validate(html_code)
+            # Validate HTML structure and requirements. ``validate`` shells out
+            # to ``node --check`` and can take seconds, so keep it off the
+            # event loop.
+            val_result: ValidationResult = await asyncio.to_thread(
+                GameValidator.validate,
+                html_code,
+                check_js=self.settings.js_syntax_check,
+            )
             if val_result.is_valid:
                 # Optional headless smoke test: run the game once in a real
                 # browser when enabled (EIGHTGEN_SMOKE_TEST=1 / smoke_test=true).

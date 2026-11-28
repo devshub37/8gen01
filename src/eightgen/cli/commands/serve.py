@@ -3,7 +3,7 @@
 from typing import Optional
 import click
 import uvicorn
-from eightgen.cli.display import console, print_banner, print_status
+from eightgen.cli.display import print_banner, print_status
 from eightgen.config.loader import get_settings
 from eightgen.utils.browser import open_in_browser
 

@@ -1,9 +1,8 @@
 """Games REST API routes."""
 
 import re
-from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Response, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
@@ -14,9 +13,12 @@ from eightgen.core.engine.archetypes import (
     build_brick_breaker_game,
     build_cyber_snake_game,
     build_flappy_drone_game,
+    build_platformer_game,
 )
-from eightgen.storage.models import Game
 from eightgen.server.security import GAME_SANDBOX_CSP
+from eightgen.utils.logger import get_logger
+
+logger = get_logger("eightgen.server.games")
 
 router = APIRouter(prefix="/api/games", tags=["games"])
 
@@ -226,13 +228,18 @@ def _with_embed_controls(html: str, ctrl: bool = True) -> str:
     return _EMBED_CONTROL_SCRIPT + "\n" + html
 
 
-def get_agent() -> Agent:
+def get_agent(request: Request) -> Agent:
     try:
-        return Agent(get_settings())
-    except ValueError as exc:
+        settings = getattr(request.app.state, "settings", None) or get_settings()
+        return Agent(settings)
+    except ValueError:
         # Misconfigured provider selection (e.g. gemini without an API key)
         # should surface as an actionable API error, not a bare 500.
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Could not initialize the game agent")
+        raise HTTPException(
+            status_code=500,
+            detail="The game engine is not configured correctly. Check the server logs.",
+        )
 
 
 def _game_response(html: str) -> HTMLResponse:
@@ -253,6 +260,8 @@ def get_archetype_html(name: str, ctrl: bool = False):
         html = build_cyber_snake_game("Cyber Snake 2099")
     elif "brick" in n or "breaker" in n:
         html = build_brick_breaker_game("Quantum Breakout")
+    elif "platform" in n or "jump" in n:
+        html = build_platformer_game("Neon Leap")
     elif "drone" in n or "flappy" in n:
         html = build_flappy_drone_game("Aero Drone Odyssey")
     else:
@@ -265,10 +274,14 @@ class RefineRequest(BaseModel):
 
 
 @router.get("", response_model=List[dict])
-def list_games(tag: Optional[str] = None, agent: Agent = Depends(get_agent)):
-    """List all games."""
-    games = agent.list_games(tag=tag)
-    return [g.model_dump(mode="json") for g in games]
+def list_games(
+    request: Request,
+    tag: Optional[str] = None,
+    limit: int = 50,
+    agent: Agent = Depends(get_agent),
+):
+    """List game summaries (metadata only; no version HTML)."""
+    return agent.list_game_summaries(limit=limit, tag=tag)
 
 
 @router.get("/{game_id}")
@@ -329,8 +342,14 @@ async def refine_game(game_id: str, payload: RefineRequest, agent: Agent = Depen
             auto_open=False,
         )
         return updated.model_dump(mode="json")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("Refinement failed for game %s", game_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Refinement failed. Check the server logs for details.",
+        )
 
 
 @router.delete("/{game_id}")

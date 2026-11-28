@@ -3,9 +3,6 @@
 import asyncio
 from typing import Optional
 import click
-from rich.live import Live
-from rich.panel import Panel
-from rich.text import Text
 
 from eightgen.cli.display import console, print_banner, print_game_card, print_error, print_status
 from eightgen.config.loader import get_settings
@@ -18,6 +15,7 @@ from eightgen.core.agent import Agent
 @click.option("--model", "-m", type=str, default=None, help="Override Ollama model")
 @click.option("--instant", is_flag=True, default=False, help="Instant 0.05s synthesis with guaranteed playable engine archetype")
 @click.option("--no-open", is_flag=True, default=False, help="Do not automatically open game in browser")
+@click.option("--no-web-learn", is_flag=True, default=False, help="Skip online game research and use curated offline briefs only")
 @click.option("--temperature", "-t", type=float, default=None, help="Sampling temperature")
 def generate_cmd(
     prompt: str,
@@ -25,6 +23,7 @@ def generate_cmd(
     model: Optional[str],
     instant: bool,
     no_open: bool,
+    no_web_learn: bool,
     temperature: Optional[float],
 ) -> None:
     """Generate a brand new HTML5 game from a prompt."""
@@ -33,6 +32,7 @@ def generate_cmd(
     settings = get_settings(
         model=model,
         auto_open=not no_open,
+        learn_from_web=False if no_web_learn else None,
         temperature=temperature,
     )
     agent = Agent(settings)

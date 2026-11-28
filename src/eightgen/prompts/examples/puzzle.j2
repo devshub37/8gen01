@@ -1,5 +1,5 @@
 Puzzle game architecture guidance:
-- Grid-based 2D array state representation.
-- Clear turn or move counting, timer, and win/loss condition.
-- Smooth transition animations when pieces move, match, or swap.
-- Mouse click / touch drag selection with visual highlights.
+- Grid-based 2D array state representation paired with smooth eased transition animations (120-180 ms) and input locking while cascades/swaps resolve.
+- Guarantee at least one legal move after refills/cascades (auto-shuffle with feedback if deadlocked); for falling-block puzzles use 7-bag randomizer, DAS/ARR, lock delay, and ghost piece.
+- Support both mouse/touch (at least 44x44 px targets, tap-tap and drag/swipe) AND keyboard navigation with preventDefault(), pause (P/Escape/blur), and instant restart.
+- Never rely on color alone: pair colors with icons, symbols, or numbers, and wrap localStorage best-score saves in try/catch.

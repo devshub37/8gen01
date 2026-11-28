@@ -77,5 +77,17 @@ def test_client_ip_prefers_forwarded_header():
     class Client:
         host = "10.0.0.1"
 
-    assert client_ip(Headers({"x-forwarded-for": "1.2.3.4, 5.6.7.8"}), Client()) == "1.2.3.4"
-    assert client_ip(Headers({}), Client()) == "10.0.0.1"
+    assert (
+        client_ip(Headers({"x-forwarded-for": "1.2.3.4, 5.6.7.8"}), Client(), trust_proxy=True)
+        == "1.2.3.4"
+    )
+    assert client_ip(Headers({}), Client(), trust_proxy=True) == "10.0.0.1"
+
+
+def test_client_ip_ignores_spoofed_forwarded_header_by_default():
+    class Client:
+        host = "10.0.0.1"
+
+    # Without a trusted proxy, X-Forwarded-For is attacker-controlled and must
+    # not be usable to rotate rate-limit buckets.
+    assert client_ip({"x-forwarded-for": "1.2.3.4"}, Client()) == "10.0.0.1"

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Test
+        run: pytest -q
+      - name: Build wheel and verify package data
+        run: |
+          python -m pip wheel . --no-deps -w dist
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          wheel = next(Path("dist").glob("*.whl"))
+          names = zipfile.ZipFile(wheel).namelist()
+          required = [
+              "eightgen/config/default.toml",
+              "eightgen/prompts/system/game_generator.j2",
+              "eightgen/prompts/user/generate.j2",
+              "eightgen/server/templates/dashboard.html",
+              "eightgen/server/static/js/dashboard.js",
+              "eightgen/templates/canvas_game.html",
+          ]
+          missing = [name for name in required if name not in names]
+          if missing:
+              raise SystemExit(f"Wheel is missing package data: {missing}")
+          print(f"Wheel contains {len(names)} files and all required data files.")
+          PY

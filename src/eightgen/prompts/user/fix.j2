@@ -8,5 +8,9 @@ The following game code failed validation checks:
 {% for err in errors %}
 - {{ err }}
 {% endfor %}
+{% if design_brief %}
+**Design & Physics Brief to preserve while fixing**:
+{{ design_brief }}
+{% endif %}
 
-Please fix all issues and output the complete, functional, working HTML game.
+Fix every issue without removing working controls, touch support, physics, sound, or game-feel effects. Output the complete, functional, working HTML game.

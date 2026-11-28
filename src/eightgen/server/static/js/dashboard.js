@@ -75,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupNavScrollIndicator();
   setupGameReferenceSelector();
   setupEventListeners();
+  setupGalleryActions();
   setupViewportFocus();
   fetchGames();
 });
@@ -1166,38 +1167,69 @@ function renderGallery(games) {
 
   grid.innerHTML = games.map((g) => {
     const icon = getCategoryIcon(g.category);
+    const gameId = escapeHtml(String(g.id || ""));
+    const title = escapeHtml(String(g.title || "Untitled Game"));
+    const slug = escapeHtml(String(g.slug || g.title || "game"));
+    const version = escapeHtml(String(g.current_version || 1));
     return `
-      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;" data-id="${g.id}">
+      <div class="product-mockup-card" style="padding: 24px; display: flex; flex-direction: column;" data-id="${gameId}">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
           <div style="font-size: 28px;">${icon}</div>
           <div style="display: flex; gap: 6px;">
-            <span class="badge-pill">v${g.current_version}</span>
-            <span class="badge-pill" style="text-transform: capitalize;">${escapeHtml(g.category || 'arcade')}</span>
+            <span class="badge-pill">v${version}</span>
+            <span class="badge-pill" style="text-transform: capitalize;">${escapeHtml(String(g.category || 'arcade'))}</span>
           </div>
         </div>
 
-        <h3 class="title-md" style="margin-bottom: 6px; font-size: 17px;">${escapeHtml(g.title)}</h3>
+        <h3 class="title-md" style="margin-bottom: 6px; font-size: 17px;">${title}</h3>
         <p class="body-sm" style="flex: 1; margin-bottom: 16px; font-size: 13px; line-height: 1.4; color: var(--color-muted); max-height: 40px; overflow: hidden; text-overflow: ellipsis;">
-          ${escapeHtml(g.description || g.title)}
+          ${escapeHtml(String(g.description || g.title || ""))}
         </p>
 
         <div style="display: flex; gap: 8px; align-items: center; margin-top: auto;">
-          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 12px; padding: 0 10px;" onclick="loadGameIntoWorkbench('${g.id}', '${escapeHtml(g.title)}')">
+          <button class="btn-primary" style="flex: 1; height: 34px; font-size: 12px; padding: 0 10px;" data-action="play" data-game-id="${gameId}" data-game-title="${title}">
             ▶ Play
           </button>
-          <button class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px;" onclick="promptRefine('${g.id}', '${escapeHtml(g.title)}')">
+          <button class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px;" data-action="refine" data-game-id="${gameId}" data-game-title="${title}">
             ⚡ Refine
           </button>
-          <a href="/api/games/${g.id}/download" class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px; display: inline-flex; align-items: center;" title="Export HTML" download onclick="return handleDownloadGame(event, '${g.id}', '${escapeHtml(g.slug || g.title)}')">
+          <a href="/api/games/${encodeURIComponent(g.id || "")}/download" class="btn-secondary" style="height: 34px; font-size: 12px; padding: 0 10px; display: inline-flex; align-items: center;" title="Export HTML" download data-action="download" data-game-id="${gameId}" data-game-title="${title}" data-slug="${slug}">
             ⬇
           </a>
-          <button class="btn-icon-circular" style="width: 34px; height: 34px; font-size: 12px; flex-shrink: 0;" onclick="deleteGame('${g.id}')" title="Delete">
+          <button class="btn-icon-circular" style="width: 34px; height: 34px; font-size: 12px; flex-shrink: 0;" data-action="delete" data-game-id="${gameId}" data-game-title="${title}" title="Delete">
             ✕
           </button>
         </div>
       </div>
     `;
   }).join("");
+}
+
+function setupGalleryActions() {
+  const grid = document.getElementById("games-grid");
+  if (!grid) return;
+  grid.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-action]");
+    if (!target || !grid.contains(target)) return;
+    const action = target.getAttribute("data-action");
+    const gameId = target.getAttribute("data-game-id");
+    const title = target.getAttribute("data-game-title") || "Game";
+    if (!gameId) return;
+
+    if (action === "play") {
+      event.preventDefault();
+      loadGameIntoWorkbench(gameId, title);
+    } else if (action === "refine") {
+      event.preventDefault();
+      promptRefine(gameId, title);
+    } else if (action === "delete") {
+      event.preventDefault();
+      deleteGame(gameId);
+    } else if (action === "download") {
+      const slug = target.getAttribute("data-slug") || title;
+      handleDownloadGame(event, gameId, slug);
+    }
+  });
 }
 
 function getCategoryIcon(cat) {
@@ -1320,8 +1352,8 @@ async function deleteGame(gameId) {
 }
 
 function escapeHtml(str) {
-  if (!str) return "";
-  return str
+  if (str === null || str === undefined) return "";
+  return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

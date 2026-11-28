@@ -4,7 +4,11 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from eightgen.config.loader import get_settings
 from eightgen.core.agent import Agent
+from eightgen.core.engine.references import REFERENCE_GAME_MAP
 from eightgen.server.security import client_ip, session_cookie_valid
+from eightgen.utils.logger import get_logger
+
+logger = get_logger("eightgen.server.ws")
 
 router = APIRouter(tags=["websocket"])
 
@@ -12,7 +16,7 @@ router = APIRouter(tags=["websocket"])
 @router.websocket("/ws/generate")
 async def websocket_generate(websocket: WebSocket):
     """Stream LLM tokens during game generation over WebSocket."""
-    settings = get_settings()
+    settings = getattr(websocket.app.state, "settings", None) or get_settings()
 
     # HTTP middleware does not run for WebSocket handshakes, so authenticate
     # and rate limit here before accepting the connection.
@@ -23,7 +27,7 @@ async def websocket_generate(websocket: WebSocket):
 
     limiter = getattr(websocket.app.state, "limiter", None)
     if limiter is not None:
-        ip = client_ip(websocket.headers, websocket.client)
+        ip = client_ip(websocket.headers, websocket.client, settings.trust_proxy)
         if not limiter.allow(f"POST:/ws/generate:{ip}"):
             await websocket.close(code=4429)
             return
@@ -42,6 +46,10 @@ async def websocket_generate(websocket: WebSocket):
 
         if not prompt and not game_reference:
             await websocket.send_json({"type": "error", "message": "Prompt or game_reference is required."})
+            await websocket.close()
+            return
+        if game_reference and str(game_reference).strip().lower() not in REFERENCE_GAME_MAP:
+            await websocket.send_json({"type": "error", "message": "Unknown game reference."})
             await websocket.close()
             return
 
@@ -73,9 +81,12 @@ async def websocket_generate(websocket: WebSocket):
 
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except Exception:
+        logger.exception("WebSocket generation failed")
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json(
+                {"type": "error", "message": "Generation failed. Check the server logs for details."}
+            )
         except Exception:
             pass
     finally:

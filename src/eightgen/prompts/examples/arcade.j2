@@ -1,5 +1,5 @@
 Arcade game architecture guidance:
-- Use an HTML5 <canvas> sized dynamically or fixed at 800x600 with CSS scaling.
-- Structure: Player entity, Enemy/Obstacle array, Bullet/Particle array, Score, Lives, Level.
-- Simple AABB (Axis-Aligned Bounding Box) or circular distance collision detection.
-- Web Audio API oscillator for sound FX (beep on hit, explosion noise).
+- Responsive HTML5 <canvas> (e.g. 800x600 scaled with CSS aspect-ratio/object-fit) driven by requestAnimationFrame with a fixed 1/60 s timestep or clamped dt (<= 0.05 s).
+- Express all speeds in px/s and cooldowns in seconds; use swept or sub-stepped collision for fast projectiles so bullets never tunnel.
+- Support keyboard (WASD/Arrows + Space) with preventDefault() AND mouse/touch drag or on-screen action controls, plus P/Escape/blur pause and instant restart.
+- Wrap localStorage high-score persistence in try/catch for sandboxed iframes, and use Web Audio API oscillators for laser, hit, explosion, pickup, and game-over SFX.

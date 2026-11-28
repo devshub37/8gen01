@@ -1,7 +1,6 @@
 """Interactive beginner-friendly CLI wizard."""
 
 import asyncio
-from typing import Optional
 import click
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel

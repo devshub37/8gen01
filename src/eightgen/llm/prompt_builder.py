@@ -11,17 +11,36 @@ class PromptBuilder:
     def __init__(self):
         self.loader = get_prompt_loader()
 
+    def design_brief(
+        self,
+        prompt: str,
+        category: Optional[str] = None,
+        game_reference: Optional[str] = None,
+    ) -> str:
+        """Return the curated controls/physics brief for this request."""
+        from eightgen.core.engine.design_knowledge import (
+            detect_design_spec,
+            render_design_brief,
+        )
+
+        spec = detect_design_spec(prompt, category, game_reference)
+        return render_design_brief(spec)
+
     def build_generate_messages(
         self,
         prompt: str,
         category: Optional[str] = None,
         game_reference: Optional[str] = None,
+        learned_context: str = "",
     ) -> List[LLMMessage]:
         """Construct system and user messages for a new game."""
         from eightgen.core.engine.references import get_reference_spec
 
         system_content = self.loader.render("system/game_generator.j2", {})
         reference_spec = get_reference_spec(game_reference) if game_reference else None
+        design_brief = self.design_brief(prompt, category, game_reference)
+        if learned_context:
+            design_brief = f"{design_brief.rstrip()}\n\n{learned_context.strip()}"
 
         skeleton_hint = ""
         if category and not reference_spec:
@@ -40,6 +59,7 @@ class PromptBuilder:
                 "category": category,
                 "skeleton_hint": skeleton_hint,
                 "reference_spec": reference_spec,
+                "design_brief": design_brief,
             },
         )
 
@@ -49,13 +69,20 @@ class PromptBuilder:
         ]
 
     def build_refine_messages(
-        self, existing_html: str, instruction: str
+        self,
+        existing_html: str,
+        instruction: str,
+        design_brief: str = "",
     ) -> List[LLMMessage]:
         """Construct messages for iterating/improving an existing game."""
         system_content = self.loader.render("system/game_refiner.j2", {})
         user_content = self.loader.render(
             "user/refine.j2",
-            {"existing_html": existing_html, "instruction": instruction},
+            {
+                "existing_html": existing_html,
+                "instruction": instruction,
+                "design_brief": design_brief,
+            },
         )
         return [
             LLMMessage(role="system", content=system_content),
@@ -63,13 +90,20 @@ class PromptBuilder:
         ]
 
     def build_fix_messages(
-        self, broken_html: str, errors: List[str]
+        self,
+        broken_html: str,
+        errors: List[str],
+        design_brief: str = "",
     ) -> List[LLMMessage]:
         """Construct messages to debug and repair invalid game code."""
         system_content = self.loader.render("system/game_debugger.j2", {})
         user_content = self.loader.render(
             "user/fix.j2",
-            {"broken_html": broken_html, "errors": errors},
+            {
+                "broken_html": broken_html,
+                "errors": errors,
+                "design_brief": design_brief,
+            },
         )
         return [
             LLMMessage(role="system", content=system_content),

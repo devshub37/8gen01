@@ -11,7 +11,6 @@ Validation layers:
 """
 
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -105,6 +104,7 @@ class _DocumentParser(HTMLParser):
 
 
 def _js_syntax_check_enabled() -> bool:
+    """Environment fallback used when a caller does not pass ``check_js``."""
     return os.getenv("EIGHTGEN_JS_SYNTAX_CHECK", "1").strip().lower() not in (
         "0", "false", "no", "off",
     )
@@ -239,9 +239,9 @@ def _scan_js_balance(js: str) -> Optional[str]:
     return None
 
 
-def _node_check(js: str) -> Optional[str]:
+def _node_check(js: str, enabled: bool = True) -> Optional[str]:
     """Parse the script with Node.js when available; None when OK/inconclusive."""
-    if not _js_syntax_check_enabled():
+    if not enabled or not _js_syntax_check_enabled():
         return None
     node = _node_binary()
     if not node:
@@ -282,7 +282,7 @@ def _node_check(js: str) -> Optional[str]:
     return f"JavaScript syntax error: {first_line.strip()[:220]}"
 
 
-def _check_scripts(scripts: List[Tuple[str, str]]) -> List[str]:
+def _check_scripts(scripts: List[Tuple[str, str]], check_js: bool = True) -> List[str]:
     """Run JS sanity checks across all script bodies."""
     errors: List[str] = []
     for index, (script_type, code) in enumerate(scripts, start=1):
@@ -304,7 +304,7 @@ def _check_scripts(scripts: List[Tuple[str, str]]) -> List[str]:
             )
             continue
 
-        node_err = _node_check(code)
+        node_err = _node_check(code, enabled=check_js)
         if node_err:
             module_note = " as a module" if "module" in script_type else ""
             errors.append(f"JavaScript problem{label}{module_note}: {node_err}")
@@ -340,8 +340,14 @@ class GameValidator:
                 finally:
                     browser.close()
         except Exception as exc:
-            # Tooling problems must never fail a game.
-            return f"Smoke test could not run: {exc}"
+            # Tooling problems (missing browser binary, sandbox restrictions)
+            # must never fail a game; log and stay silent.
+            import logging
+
+            logging.getLogger("eightgen.validator").warning(
+                "Smoke test could not run: %s", exc
+            )
+            return None
         if errors:
             first = errors[0][:220]
             return f"Runtime error in headless browser: {first}"
@@ -383,7 +389,7 @@ class GameValidator:
             if total_script_len < 50:
                 errors.append("Script tag appears empty or too short to contain game logic.")
             elif check_js:
-                errors.extend(_check_scripts(scripts))
+                errors.extend(_check_scripts(scripts, check_js=check_js))
 
         # 3. Visual container (Canvas or DOM container).
         has_canvas = "<canvas" in code_lower
@@ -405,9 +411,30 @@ class GameValidator:
         if not (has_raf or has_interval or has_events):
             errors.append("Game does not appear to have an update loop or user input event listeners.")
 
-        # Warning checks.
+        # Warning checks (quality guidance, never a hard failure).
+        all_js = "\n".join(code for _, code in scripts).lower()
         if "audio" not in code_lower and "audiocontext" not in code_lower:
             warnings.append("No Web Audio API detected for sound effects.")
+        has_touch = any(
+            token in all_js
+            for token in ("touchstart", "touchmove", "pointerdown", "ontouchstart", "ontouchmove")
+        )
+        if has_events and not has_touch:
+            warnings.append("No touch/pointer controls detected; mobile players may be unable to play.")
+        if ("keydown" in all_js or "keyup" in all_js) and "preventdefault" not in all_js:
+            warnings.append("Keyboard handlers do not call preventDefault(); arrow/Space keys may scroll the page.")
+        if "restart" not in all_js and "resetgame" not in all_js and "reset(" not in all_js:
+            warnings.append("No obvious restart/reset path detected for the game-over state.")
+        if "requestanimationframe" in all_js and not any(
+            token in all_js for token in ("delta", "dt", "fixed", "accumulator", "timestamp")
+        ):
+            warnings.append("Game loop does not appear to use delta/fixed timestep; speed may vary by refresh rate.")
+        if "setinterval" in all_js and "requestanimationframe" not in all_js:
+            warnings.append("setInterval drives the game loop; prefer requestAnimationFrame with a fixed timestep.")
+        if "alert(" in all_js or "prompt(" in all_js:
+            warnings.append("Avoid alert()/prompt() dialogs; use an in-canvas overlay instead.")
+        if ("localstorage" in all_js or "sessionstorage" in all_js) and "try" not in all_js:
+            warnings.append("Wrap localStorage/sessionStorage access in try/catch; sandboxed iframes may throw.")
 
         is_valid = len(errors) == 0
         return ValidationResult(is_valid=is_valid, errors=errors, warnings=warnings)
