@@ -177,8 +177,8 @@ class GeminiProvider(LLMProvider):
                         raw=data,
                     )
                 raise RuntimeError(f"Gemini API error: {last_err}")
-        except httpx.ConnectError:
-            raise ConnectionError("Cannot connect to Google Gemini API servers.")
+        except httpx.ConnectError as exc:
+            raise ConnectionError("Cannot connect to Google Gemini API servers.") from exc
 
     async def stream(
         self,
@@ -281,8 +281,8 @@ class GeminiProvider(LLMProvider):
                         continue
 
                 raise RuntimeError(f"Gemini API error: {last_err or 'All candidate models unavailable.'}")
-        except httpx.ConnectError:
-            raise ConnectionError("Cannot connect to Google Gemini API servers.")
+        except httpx.ConnectError as exc:
+            raise ConnectionError("Cannot connect to Google Gemini API servers.") from exc
 
     async def _generate_via_proxy(
         self, messages: List[LLMMessage], temperature: float, **kwargs: Any

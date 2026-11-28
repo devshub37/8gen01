@@ -34,12 +34,12 @@ async def generate_image(payload: ImageRequest, gen: ImageGenerator = Depends(ge
             size=payload.size or "1024x1024",
         )
         return result
-    except Exception:
+    except Exception as exc:
         logger.exception("Image generation failed")
         raise HTTPException(
             status_code=500,
             detail="Image generation failed. Check the server logs for details.",
-        )
+        ) from exc
 
 
 @router.get("")

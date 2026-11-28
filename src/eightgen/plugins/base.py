@@ -1,10 +1,9 @@
 """Base plugin interface."""
 
-from abc import ABC
 from typing import List, Optional
 
 
-class Plugin(ABC):
+class Plugin:
     """Base class for 8Gen plugins."""
     name: str = "base_plugin"
     version: str = "0.1.0"

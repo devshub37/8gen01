@@ -115,10 +115,10 @@ class OllamaProvider(LLMProvider):
                     completion_tokens=data.get("eval_count"),
                     raw=data
                 )
-        except httpx.ConnectError:
+        except httpx.ConnectError as exc:
             raise ConnectionError(
                 f"Cannot connect to Ollama at {self.base_url}. Please ensure Ollama is running (`ollama serve`)."
-            )
+            ) from exc
 
     async def stream(
         self,
@@ -157,7 +157,7 @@ class OllamaProvider(LLMProvider):
                                 break
                         except json.JSONDecodeError:
                             continue
-        except httpx.ConnectError:
+        except httpx.ConnectError as exc:
             raise ConnectionError(
                 f"Cannot connect to Ollama at {self.base_url}. Please ensure Ollama is running (`ollama serve`)."
-            )
+            ) from exc

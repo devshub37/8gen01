@@ -18,12 +18,12 @@ def get_agent(request: Request) -> Agent:
     try:
         settings = getattr(request.app.state, "settings", None) or get_settings()
         return Agent(settings)
-    except ValueError:
+    except ValueError as exc:
         logger.exception("Could not initialize the game agent")
         raise HTTPException(
             status_code=500,
             detail="The game engine is not configured correctly. Check the server logs.",
-        )
+        ) from exc
 
 
 class GenerateRequest(BaseModel):
@@ -54,10 +54,10 @@ async def generate_game(payload: GenerateRequest, agent: Agent = Depends(get_age
         )
         return game.model_dump(mode="json")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
         logger.exception("Game generation failed")
         raise HTTPException(
             status_code=500,
             detail="Game generation failed. Check the server logs for details.",
-        )
+        ) from exc

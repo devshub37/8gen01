@@ -232,14 +232,14 @@ def get_agent(request: Request) -> Agent:
     try:
         settings = getattr(request.app.state, "settings", None) or get_settings()
         return Agent(settings)
-    except ValueError:
+    except ValueError as exc:
         # Misconfigured provider selection (e.g. gemini without an API key)
         # should surface as an actionable API error, not a bare 500.
         logger.exception("Could not initialize the game agent")
         raise HTTPException(
             status_code=500,
             detail="The game engine is not configured correctly. Check the server logs.",
-        )
+        ) from exc
 
 
 def _game_response(html: str) -> HTMLResponse:
@@ -343,13 +343,13 @@ async def refine_game(game_id: str, payload: RefineRequest, agent: Agent = Depen
         )
         return updated.model_dump(mode="json")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
         logger.exception("Refinement failed for game %s", game_id)
         raise HTTPException(
             status_code=500,
             detail="Refinement failed. Check the server logs for details.",
-        )
+        ) from exc
 
 
 @router.delete("/{game_id}")

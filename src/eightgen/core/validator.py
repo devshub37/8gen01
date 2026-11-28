@@ -144,17 +144,29 @@ def _scan_js_balance(js: str) -> Optional[str]:
 
         if mode == "code":
             if c == "/" and nxt == "/":
-                mode = "line_comment"; i += 2; continue
+                mode = "line_comment"
+                i += 2
+                continue
             if c == "/" and nxt == "*":
-                mode = "block_comment"; i += 2; continue
+                mode = "block_comment"
+                i += 2
+                continue
             if c == "'":
-                mode = "squote"; i += 1; continue
+                mode = "squote"
+                i += 1
+                continue
             if c == '"':
-                mode = "dquote"; i += 1; continue
+                mode = "dquote"
+                i += 1
+                continue
             if c == "`":
-                mode = "template"; i += 1; continue
+                mode = "template"
+                i += 1
+                continue
             if c == "/" and _regex_allowed_after(word or prev_token):
-                mode = "regex"; i += 1; continue
+                mode = "regex"
+                i += 1
+                continue
             if c in "([{":
                 stack.append((c, i))
             elif c in ")]}":
@@ -171,38 +183,46 @@ def _scan_js_balance(js: str) -> Optional[str]:
                     template_markers.discard(open_pos)
                     mode = "template"
             if c.isspace():
-                i += 1; continue
+                i += 1
+                continue
             if c.isalnum() or c in "_$":
                 word += c
             else:
                 word = ""
                 prev_token = c
-            i += 1; continue
+            i += 1
+            continue
 
         if mode in ("squote", "dquote", "template"):
             quote = {"squote": "'", "dquote": '"', "template": "`"}[mode]
             if c == "\\":
-                i += 2; continue
+                i += 2
+                continue
             if mode == "template" and c == "$" and nxt == "{":
                 stack.append(("{", i + 1))
                 template_markers.add(i + 1)
                 mode = "code"
                 word = ""
-                i += 2; continue
+                i += 2
+                continue
             if c == quote:
                 mode = "code"
-                i += 1; continue
-            i += 1; continue
+                i += 1
+                continue
+            i += 1
+            continue
 
         if mode == "regex":
             if c == "\\":
-                i += 2; continue
+                i += 2
+                continue
             if c == "[":
                 # consume char class
                 i += 1
                 while i < n and js[i] != "]":
                     i += 2 if js[i] == "\\" else 1
-                i += 1; continue
+                i += 1
+                continue
             if c == "/":
                 mode = "code"
                 i += 1
@@ -211,18 +231,22 @@ def _scan_js_balance(js: str) -> Optional[str]:
                 # Unterminated regex (line terminator) — treat as plain code.
                 mode = "code"
                 continue
-            i += 1; continue
+            i += 1
+            continue
 
         if mode == "line_comment":
             if c == "\n":
                 mode = "code"
-            i += 1; continue
+            i += 1
+            continue
 
         if mode == "block_comment":
             if c == "*" and nxt == "/":
                 mode = "code"
-                i += 2; continue
-            i += 1; continue
+                i += 2
+                continue
+            i += 1
+            continue
 
     if mode in ("squote", "dquote", "template"):
         return f"Unterminated {mode} string literal."
